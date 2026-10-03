@@ -10,10 +10,12 @@ export {
 } from './dates';
 export type { CalendarDate } from './dates';
 export { formatCapacityPercent, formatHourlyRate } from './format';
-export { hoursForPersonMonths, priceMonthlyAllocation } from './pricing';
+export { hoursForPersonMonths, monthRateSchedule, priceMonthlyAllocation } from './pricing';
 export type {
   HourlyRate,
+  MonthRateSchedule,
   MonthlyAllocationInput,
   MonthlyAllocationPrice,
+  RateCoverage,
   RateWorkingDaySplit,
 } from './pricing';
