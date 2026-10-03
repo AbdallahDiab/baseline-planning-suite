@@ -1,0 +1,16 @@
+{
+  "name": "baseline-planning-suite",
+  "private": true,
+  "packageManager": "pnpm@10.18.2",
+  "scripts": {
+    "build": "pnpm --filter \"./apps/*\" --if-present run build",
+    "typecheck": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" --if-present run typecheck",
+    "test": "pnpm --filter \"./packages/*\" --if-present run test"
+  },
+  "pnpm": {
+    "overrides": {
+      "react": "18.3.1",
+      "react-dom": "18.3.1"
+    }
+  }
+}

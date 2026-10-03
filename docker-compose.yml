@@ -1,0 +1,60 @@
+services:
+  shell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: shell
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  people:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: people
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  delivery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: delivery
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: gateway
+    ports:
+      - "8080:8080"
+    environment:
+      PEOPLE_REMOTE_URL: /people/mf-manifest.json
+      DELIVERY_REMOTE_URL: /delivery/mf-manifest.json
+    depends_on:
+      shell:
+        condition: service_healthy
+      people:
+        condition: service_healthy
+      delivery:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
