@@ -25,7 +25,11 @@ export { projectVisibleMonths } from './projects';
 export type { DatedProject, ProjectMonthError } from './projects';
 export { rollupEffortAndCost } from './rollups';
 export type { EffortCost, LeafContribution, RollupError } from './rollups';
+export type { DomainAllocation } from './allocation';
+export { isOversubscribed, summarizeEmployeeCapacity } from './capacity';
+export type { CapacityCause, EmployeeMonthCapacity } from './capacity';
 export type { DomainResult } from './result';
+export { compareInstant } from './timestamps';
 export {
   validateAddWbsChild,
   validateDeleteWbsItem,
