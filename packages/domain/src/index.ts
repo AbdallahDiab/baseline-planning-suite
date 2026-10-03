@@ -9,6 +9,15 @@ export {
   weekdaySunday0,
 } from './dates';
 export type { CalendarDate } from './dates';
+export {
+  distributeLargestRemainder,
+  formatCost,
+  formatDisplay,
+  formatHours,
+  formatPersonMonths,
+  roundDisplay,
+} from './display';
+export type { DisplayDistribution } from './display';
 export { formatCapacityPercent, formatHourlyRate } from './format';
 export type { DomainResult } from './result';
 export {
