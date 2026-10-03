@@ -48,6 +48,7 @@ export default {
   plugins: [
     new rspack.HtmlRspackPlugin({
       template: './src/index.html',
+      chunks: ['main'],
     }),
     new ModuleFederationPlugin({
       name: 'people',
