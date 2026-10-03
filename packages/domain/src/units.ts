@@ -82,10 +82,12 @@ export function costForPersonMonths(
     month: input.month,
     rates: input.rates,
   });
+  const schedule = monthRateSchedule(input.month, input.rates);
   return {
     cost: priced.cost,
     coverage: priced.coverage,
-    exactBlendedHourlyRate: usableBlendedRate(priced.blendedHourlyRate, priced.coverage),
+    exactBlendedHourlyRate:
+      usableBlendedRate(priced.blendedHourlyRate, priced.coverage) ?? schedule.exactBlendedHourlyRate,
   };
 }
 

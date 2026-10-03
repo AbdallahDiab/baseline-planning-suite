@@ -88,6 +88,7 @@ describe('canonical allocation conversions', () => {
     expect(forward.coverage).toEqual({ status: 'full' });
     expect(forward.exactBlendedHourlyRate).toBe(7880 / 88);
     expect(forward.exactBlendedHourlyRate).not.toBe(89.5455);
+    expect(costForPersonMonths(0, marchInput).exactBlendedHourlyRate).toBe(7880 / 88);
 
     const canonical = personMonthsForCost(7880, marchInput);
     expect(canonical).toEqual({ ok: true, value: 0.5 });
