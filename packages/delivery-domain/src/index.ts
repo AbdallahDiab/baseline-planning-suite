@@ -1,3 +1,8 @@
+/**
+ * Delivery-owned planning domain.
+ * People and Shell must not import this package.
+ * Cross-MFE shared contracts belong in @baseline/contracts.
+ */
 export {
   compareIsoDate,
   daysInMonth,
