@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import type { RemoteAppProps } from '@baseline/contracts';
 import { loadHostedRemote } from './load-remote';
+import { RemoteErrorBoundary } from './RemoteErrorBoundary';
 
 interface RemotePanelProps extends RemoteAppProps {
   title: string;
@@ -54,7 +55,9 @@ export function RemotePanel({
         </p>
       ) : null}
       {state.status === 'ready' ? (
-        <state.Component displayCurrency={displayCurrency} activeUser={activeUser} />
+        <RemoteErrorBoundary remoteName={title}>
+          <state.Component displayCurrency={displayCurrency} activeUser={activeUser} />
+        </RemoteErrorBoundary>
       ) : null}
     </section>
   );
