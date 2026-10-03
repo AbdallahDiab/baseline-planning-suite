@@ -2,8 +2,10 @@ export {
   compareIsoDate,
   daysInMonth,
   formatIsoDate,
+  formatYearMonth,
   isLeapYear,
   listWorkingDays,
+  listYearMonths,
   parseIsoDate,
   parseYearMonth,
   weekdaySunday0,
@@ -19,7 +21,29 @@ export {
 } from './display';
 export type { DisplayDistribution } from './display';
 export { formatCapacityPercent, formatHourlyRate } from './format';
+export { projectVisibleMonths } from './projects';
+export type { DatedProject, ProjectMonthError } from './projects';
+export { rollupEffortAndCost } from './rollups';
+export type { EffortCost, LeafContribution, RollupError } from './rollups';
 export type { DomainResult } from './result';
+export {
+  validateAddWbsChild,
+  validateDeleteWbsItem,
+  validateLeafAllocationTarget,
+  validateMoveWbsItem,
+  validateWbsTree,
+  WBS_LEVEL_COUNT,
+  WBS_MAX_DEPTH,
+} from './wbs';
+export type {
+  WbsAddChildError,
+  WbsAllocationRef,
+  WbsDeleteError,
+  WbsItem,
+  WbsLeafError,
+  WbsMoveError,
+  WbsTreeError,
+} from './wbs';
 export {
   capacityRatioForPersonMonths,
   costForPersonMonths,
