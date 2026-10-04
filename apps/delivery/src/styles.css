@@ -1,0 +1,126 @@
+.delivery {
+  color: #1c2430;
+  font-family: "Segoe UI", sans-serif;
+  line-height: 1.4;
+  max-width: 960px;
+}
+
+.delivery :focus-visible {
+  outline: 2px solid #0b5cab;
+  outline-offset: 2px;
+}
+
+.delivery h2,
+.delivery h3 {
+  margin: 0 0 8px;
+}
+
+.delivery-header {
+  align-items: baseline;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.delivery-user {
+  color: #4b5563;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.delivery input,
+.delivery select,
+.delivery button {
+  font: inherit;
+}
+
+.delivery input,
+.delivery select {
+  padding: 6px 8px;
+}
+
+.delivery button {
+  padding: 6px 10px;
+}
+
+.delivery button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.project-selector label,
+.wbs-form label {
+  display: grid;
+  gap: 4px;
+  max-width: 420px;
+}
+
+.project-details {
+  display: grid;
+  gap: 8px 16px;
+  grid-template-columns: 160px 1fr;
+  margin: 16px 0;
+}
+
+.project-details dt {
+  font-weight: 650;
+}
+
+.project-details div {
+  display: contents;
+}
+
+.wbs-tree,
+.wbs-tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.wbs-tree ul {
+  border-left: 1px solid #d5dbe3;
+  margin-left: 12px;
+  padding-left: 16px;
+}
+
+.wbs-node {
+  margin: 0 0 12px;
+}
+
+.wbs-row {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.wbs-name {
+  font-weight: 650;
+}
+
+.wbs-meta {
+  color: #4b5563;
+  font-size: 0.85rem;
+}
+
+.wbs-actions,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 8px;
+}
+
+.wbs-form,
+.wbs-feedback {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 12px;
+  max-width: 420px;
+}
+
+.delivery [role='alert'] {
+  color: #8a1c1c;
+  margin: 0;
+}
