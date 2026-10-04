@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Allocation, CapacitySummary, Employee, RateRecord } from '@baseline/contracts';
+import type { Allocation, BreakdownItem, CapacitySummary, Employee, RateRecord } from '@baseline/contracts';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../src/app';
 import type { PlanningStore } from '../src/store/model';
@@ -441,6 +441,40 @@ describe('HTTP API', () => {
       }
       expect(contributing.map((allocation) => allocation.amount).sort()).toEqual([0.65, 0.65]);
       expect(contributing.every((allocation) => allocation.updatedAt === null)).toBe(true);
+
+      const projectWbs = await readJson<BreakdownItem[]>(await send(app, '/api/projects/prj-1/wbs'));
+      const parentIds = new Set(projectWbs.map((item) => item.parentId).filter((parentId) => parentId !== null));
+      const usedItemIds = new Set(contributing.map((allocation) => allocation.breakdownItemId));
+      const openLeaf = projectWbs.find((item) => !parentIds.has(item.id) && !usedItemIds.has(item.id));
+      if (!openLeaf) {
+        throw new Error('Expected an unused prj-1 leaf for a zero person-month allocation');
+      }
+      const zeroResponse = await send(app, '/api/allocations/cell', {
+        method: 'PUT',
+        json: {
+          breakdownItemId: openLeaf.id,
+          employeeId: 'emp-023',
+          month: '2026-06',
+          amount: 0,
+        },
+      });
+      expect(zeroResponse.status).toBe(200);
+      const zeroAllocation = await readJson<Allocation>(zeroResponse);
+      expect(zeroAllocation.amount).toBe(0);
+      expect(zeroAllocation.updatedAt).not.toBeNull();
+
+      const afterZero = await readJson<CapacitySummary[]>(
+        await send(app, '/api/capacity?employeeId=emp-023&month=2026-06'),
+      );
+      expect(afterZero).toEqual([
+        {
+          employeeId: 'emp-023',
+          month: '2026-06',
+          totalPersonMonths: 1.3,
+          overCapacity: true,
+          causeAllocationId: null,
+        },
+      ]);
 
       const [first, second] = contributing;
       if (!first || !second) {
