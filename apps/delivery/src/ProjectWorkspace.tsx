@@ -70,7 +70,7 @@ function ProjectWbs({ projectId }: { projectId: string }) {
         </div>
       ) : null}
       {wbsQuery.data && allocationsQuery.data ? (
-        <WbsTree items={wbsQuery.data} allocations={allocationsQuery.data} />
+        <WbsTree projectId={projectId} items={wbsQuery.data} allocations={allocationsQuery.data} />
       ) : null}
     </section>
   );

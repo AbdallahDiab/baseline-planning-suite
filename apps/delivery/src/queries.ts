@@ -1,5 +1,13 @@
-import { QueryClient, useQuery } from '@tanstack/react-query';
-import { listProjectAllocations, listProjectWbs, listProjects } from './api';
+import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  createWbsItem,
+  deleteWbsItem,
+  listProjectAllocations,
+  listProjectWbs,
+  listProjects,
+  moveWbsItem,
+  renameWbsItem,
+} from './api';
 
 export function createDeliveryQueryClient(): QueryClient {
   return new QueryClient({
@@ -39,5 +47,41 @@ export function useProjectAllocations(projectId: string) {
   return useQuery({
     queryKey: deliveryQueryKeys.allocations(projectId),
     queryFn: () => listProjectAllocations(projectId),
+  });
+}
+
+function invalidateProjectWbs(queryClient: QueryClient, projectId: string) {
+  return queryClient.invalidateQueries({ queryKey: deliveryQueryKeys.wbs(projectId), exact: true });
+}
+
+export function useCreateWbsItem(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { parentId: string | null; name: string }) => createWbsItem(projectId, input),
+    onSuccess: () => invalidateProjectWbs(queryClient, projectId),
+  });
+}
+
+export function useRenameWbsItem(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { itemId: string; name: string }) => renameWbsItem(input.itemId, input.name),
+    onSuccess: () => invalidateProjectWbs(queryClient, projectId),
+  });
+}
+
+export function useMoveWbsItem(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { itemId: string; parentId: string | null }) => moveWbsItem(input.itemId, input.parentId),
+    onSuccess: () => invalidateProjectWbs(queryClient, projectId),
+  });
+}
+
+export function useDeleteWbsItem(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => deleteWbsItem(itemId),
+    onSuccess: () => invalidateProjectWbs(queryClient, projectId),
   });
 }

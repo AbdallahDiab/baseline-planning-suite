@@ -35,6 +35,39 @@ export function listProjectAllocations(projectId: string): Promise<Allocation[]>
   return request<Allocation[]>(`/api/projects/${encodeURIComponent(projectId)}/allocations`);
 }
 
+export function createWbsItem(
+  projectId: string,
+  input: { parentId: string | null; name: string },
+): Promise<BreakdownItem> {
+  return request<BreakdownItem>(`/api/projects/${encodeURIComponent(projectId)}/wbs`, {
+    method: 'POST',
+    body: JSON.stringify({
+      parentId: input.parentId,
+      name: input.name,
+    }),
+  });
+}
+
+export function renameWbsItem(itemId: string, name: string): Promise<BreakdownItem> {
+  return request<BreakdownItem>(`/api/wbs/${encodeURIComponent(itemId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function moveWbsItem(itemId: string, parentId: string | null): Promise<BreakdownItem> {
+  return request<BreakdownItem>(`/api/wbs/${encodeURIComponent(itemId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ parentId }),
+  });
+}
+
+export function deleteWbsItem(itemId: string): Promise<void> {
+  return request<void>(`/api/wbs/${encodeURIComponent(itemId)}`, {
+    method: 'DELETE',
+  });
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
