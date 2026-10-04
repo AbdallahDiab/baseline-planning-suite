@@ -41,6 +41,26 @@ export function formatIsoDate(date: CalendarDate): string {
   return `${String(date.year).padStart(4, '0')}-${month}-${day}`;
 }
 
+export function formatYearMonth(year: number, month: number): string {
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}`;
+}
+
+/** Inclusive month span. Uses year/month arithmetic, not the host timezone. */
+export function listYearMonths(
+  start: { year: number; month: number },
+  end: { year: number; month: number },
+): string[] {
+  const startIndex = start.year * 12 + (start.month - 1);
+  const endIndex = end.year * 12 + (end.month - 1);
+  const months: string[] = [];
+  for (let index = startIndex; index <= endIndex; index += 1) {
+    const year = Math.floor(index / 12);
+    const month = (index % 12) + 1;
+    months.push(formatYearMonth(year, month));
+  }
+  return months;
+}
+
 export function parseYearMonth(value: string): { year: number; month: number } {
   const match = YEAR_MONTH.exec(value);
   if (!match) {
