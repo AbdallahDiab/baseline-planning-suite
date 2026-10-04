@@ -21,6 +21,8 @@ export function WbsItem({
   active,
   pending,
   error,
+  selectedItemId,
+  onSelectStaffing,
   onOpen,
   onCancel,
   onBeginAttempt,
@@ -35,6 +37,8 @@ export function WbsItem({
   active: ActiveWbsAction | null;
   pending: boolean;
   error: string | null;
+  selectedItemId: string | null;
+  onSelectStaffing: (itemId: string) => void;
   onOpen: (itemId: string, kind: 'create-child' | 'rename' | 'move' | 'delete') => void;
   onCancel: () => void;
   onBeginAttempt: () => void;
@@ -48,6 +52,7 @@ export function WbsItem({
   const actionsDisabled = pending || (active !== null && action === null);
   const allocated = hasDirectAllocations(allocationRefs, itemId);
   const allowChild = canAddChild(items, itemId, allocationRefs);
+  const selected = selectedItemId === itemId;
 
   return (
     <li className="wbs-node">
@@ -56,6 +61,16 @@ export function WbsItem({
         <span className="wbs-meta">{node.children.length > 0 ? 'Parent' : 'Leaf'}</span>
         <span className="wbs-meta">Depth {node.depth}</span>
         {allocated ? <span className="wbs-meta">Has direct allocations</span> : null}
+        {selected ? <span className="wbs-meta">Selected for staffing</span> : null}
+        <button
+          type="button"
+          aria-pressed={selected}
+          onClick={() => {
+            onSelectStaffing(itemId);
+          }}
+        >
+          Plan staffing
+        </button>
       </div>
       <div className="wbs-actions" role="group" aria-label={`Actions for ${node.item.name}`}>
         {action === null ? (
@@ -135,6 +150,8 @@ export function WbsItem({
               active={active}
               pending={pending}
               error={error}
+              selectedItemId={selectedItemId}
+              onSelectStaffing={onSelectStaffing}
               onOpen={onOpen}
               onCancel={onCancel}
               onBeginAttempt={onBeginAttempt}
