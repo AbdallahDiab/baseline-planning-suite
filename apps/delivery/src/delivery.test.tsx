@@ -1,4 +1,4 @@
-import type { Allocation, BreakdownItem, Project, RemoteAppProps } from '@baseline/contracts';
+import type { Allocation, BreakdownItem, Employee, Project, RateRecord, RemoteAppProps } from '@baseline/contracts';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -61,10 +61,15 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function installFetch(options?: {
   projects?: Project[];
+  employees?: Employee[];
+  rates?: RateRecord[];
+  wbs?: BreakdownItem[];
+  allocations?: Allocation[];
   failProjectsOnce?: boolean;
   onCreate?: (url: string, body: unknown) => Response;
   onPatch?: (url: string, body: unknown) => Response;
   onDelete?: (url: string) => Response;
+  onAllocation?: (body: unknown) => Response | Promise<Response>;
 }) {
   const calls: FetchCall[] = [];
   let projectAttempts = 0;
@@ -84,10 +89,21 @@ function installFetch(options?: {
         return jsonResponse(options?.projects ?? [ledger, reporting]);
       }
 
+      if (method === 'GET' && url === '/api/employees') {
+        return jsonResponse(options?.employees ?? []);
+      }
+
+      if (method === 'GET' && url === '/api/rates') {
+        return jsonResponse(options?.rates ?? []);
+      }
+
       const wbsMatch = /^\/api\/projects\/([^/]+)\/wbs$/.exec(url);
       if (wbsMatch) {
         const projectId = decodeURIComponent(wbsMatch[1] ?? '');
         if (method === 'GET') {
+          if (options?.wbs) {
+            return jsonResponse(options.wbs);
+          }
           return jsonResponse(projectId === reporting.id ? reportingWbs : ledgerWbs);
         }
         if (method === 'POST') {
@@ -101,8 +117,26 @@ function installFetch(options?: {
 
       const allocationMatch = /^\/api\/projects\/([^/]+)\/allocations$/.exec(url);
       if (method === 'GET' && allocationMatch) {
+        if (options?.allocations) {
+          return jsonResponse(options.allocations);
+        }
         const projectId = decodeURIComponent(allocationMatch[1] ?? '');
         return jsonResponse(projectId === reporting.id ? [] : ledgerAllocations);
+      }
+
+      if (method === 'PUT' && url === '/api/allocations/cell') {
+        if (options?.onAllocation) {
+          return options.onAllocation(body);
+        }
+        const input = body as { breakdownItemId: string; employeeId: string; month: string; amount: number };
+        return jsonResponse({
+          id: 'alloc-saved',
+          breakdownItemId: input.breakdownItemId,
+          employeeId: input.employeeId,
+          month: input.month,
+          amount: input.amount,
+          updatedAt: '2026-10-04T00:00:00.000Z',
+        });
       }
 
       if (method === 'PATCH' && url.startsWith('/api/wbs/')) {
@@ -428,5 +462,295 @@ describe('Delivery WBS workspace', () => {
 
     expect(await screen.findByText('No projects are available.')).toBeTruthy();
     expect(screen.queryByLabelText('Project')).toBeNull();
+  });
+});
+
+const ada: Employee = {
+  id: 'emp-001',
+  name: 'Ada Lovelace',
+  role: 'Engineer',
+  weeklyHours: 40,
+};
+
+const goldenRates: RateRecord[] = [
+  { id: 'rate-001', employeeId: ada.id, validFrom: '2025-01-01', hourlyCost: 80 },
+  { id: 'rate-002', employeeId: ada.id, validFrom: '2026-03-12', hourlyCost: 95 },
+];
+
+function staffingAllocation(amount: number, itemId = 'wbs-leaf', month = '2026-03', employeeId = ada.id): Allocation {
+  return {
+    id: `alloc-${itemId}-${month}`,
+    breakdownItemId: itemId,
+    employeeId,
+    month,
+    amount,
+    updatedAt: null,
+  };
+}
+
+function planStaffingButton(name: string): HTMLElement {
+  const row = itemNamed(name).querySelector(':scope > .wbs-row');
+  if (!(row instanceof HTMLElement)) {
+    throw new Error(`Missing row for ${name}`);
+  }
+  return within(row).getByRole('button', { name: 'Plan staffing' });
+}
+
+function monthCell(employeeName: string, monthLabel: string): HTMLElement {
+  const table = screen.getByRole('table', { name: /^Staffing for / });
+  const headers = within(table).getAllByRole('columnheader');
+  const monthIndex = headers.findIndex((header) => header.textContent === monthLabel);
+  const rowHeader = within(table).getByRole('rowheader', { name: new RegExp(employeeName) });
+  const row = rowHeader.closest('tr');
+  const cell = row?.querySelectorAll('td')[monthIndex - 1];
+  if (!(cell instanceof HTMLElement)) {
+    throw new Error(`Missing ${monthLabel} cell for ${employeeName}`);
+  }
+  return cell;
+}
+
+function amountText(cell: ParentNode): string {
+  return cell.querySelector('.staff-amount')?.textContent ?? '';
+}
+
+function putCalls(calls: FetchCall[]): FetchCall[] {
+  return calls.filter((call) => call.method === 'PUT');
+}
+
+async function renderStaffing(options?: Parameters<typeof installFetch>[0]) {
+  const calls = installFetch({
+    employees: [ada],
+    rates: goldenRates,
+    allocations: [staffingAllocation(0.5)],
+    ...options,
+  });
+  render(<DeliveryApp displayCurrency="EUR" activeUser={{ id: 'shell-operator', name: 'Baseline Operator' }} />);
+  await screen.findByRole('table', { name: /^Staffing for / });
+  return calls;
+}
+
+describe('Delivery staffing grid', () => {
+  it('renders employees across the project months', async () => {
+    await renderStaffing();
+
+    const table = screen.getByRole('table', { name: 'Staffing for Design' });
+    expect(within(table).getByRole('columnheader', { name: 'Mar 2026' })).toBeTruthy();
+    expect(within(table).getByRole('columnheader', { name: 'Feb 2027' })).toBeTruthy();
+    expect(within(table).getByRole('rowheader', { name: /Ada Lovelace/ }).textContent).toContain('Engineer');
+    expect(within(table).getByRole('rowheader', { name: /Ada Lovelace/ }).textContent).toContain('40 h/week');
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(14);
+  });
+
+  it('shows March 2026 for Ledger Consolidation', async () => {
+    await renderStaffing();
+
+    expect(screen.getByRole('columnheader', { name: 'Mar 2026' })).toBeTruthy();
+    expect(amountText(monthCell('Ada Lovelace', 'Mar 2026'))).toBe('0.50');
+  });
+
+  it('selects the first leaf and can switch to another leaf or a read-only parent', async () => {
+    const user = userEvent.setup();
+    await renderStaffing({
+      allocations: [staffingAllocation(0.25, 'wbs-leaf'), staffingAllocation(0.25, 'wbs-allocated', '2026-03', ada.id)],
+    });
+
+    expect(planStaffingButton('Design')).toHaveProperty('ariaPressed', 'true');
+    expect(itemNamed('Design').querySelector(':scope > .wbs-row')?.textContent).toContain('Selected for staffing');
+    expect(screen.getByRole('table', { name: 'Staffing for Design' })).toBeTruthy();
+
+    await user.click(planStaffingButton('Pilot'));
+
+    expect(planStaffingButton('Pilot')).toHaveProperty('ariaPressed', 'true');
+    expect(planStaffingButton('Design')).toHaveProperty('ariaPressed', 'false');
+    expect(screen.getByRole('table', { name: 'Staffing for Pilot' })).toBeTruthy();
+
+    await user.click(planStaffingButton('Ledger migration'));
+
+    expect(screen.getByRole('table', { name: 'Staffing for Ledger migration' })).toBeTruthy();
+    expect(screen.getByText(/cannot be edited/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Edit / })).toBeNull();
+    expect(amountText(monthCell('Ada Lovelace', 'Mar 2026'))).toBe('0.50');
+  });
+
+  it('resets the selected leaf when the project changes', async () => {
+    const user = userEvent.setup();
+    await renderStaffing();
+
+    await user.selectOptions(screen.getByLabelText('Project'), reporting.id);
+
+    expect(await screen.findByRole('table', { name: 'Staffing for Platform foundation' })).toBeTruthy();
+    expect(itemNamed('Platform foundation').textContent).toContain('Selected for staffing');
+
+    await user.selectOptions(screen.getByLabelText('Project'), ledger.id);
+
+    expect(await screen.findByRole('table', { name: 'Staffing for Design' })).toBeTruthy();
+    expect(itemNamed('Design').textContent).toContain('Selected for staffing');
+  });
+
+  it('displays PM, hours, percent, and cost without saving', async () => {
+    const user = userEvent.setup();
+    const calls = await renderStaffing();
+    const march = () => amountText(monthCell('Ada Lovelace', 'Mar 2026'));
+
+    expect(march()).toBe('0.50');
+    await user.click(screen.getByRole('button', { name: 'Edit Ada Lovelace Mar 2026' }));
+    expect((screen.getByLabelText('Allocation for Ada Lovelace in Mar 2026') as HTMLInputElement).value).toBe('0.5');
+
+    await user.click(screen.getByRole('button', { name: 'Hours' }));
+    expect(screen.queryByLabelText('Allocation for Ada Lovelace in Mar 2026')).toBeNull();
+    expect(march()).toBe('88.00');
+
+    await user.click(screen.getByRole('button', { name: '%' }));
+    expect(march()).toBe('50.0%');
+
+    await user.click(screen.getByRole('button', { name: 'Cost' }));
+    expect(march()).toBe('€7,880.00');
+
+    await user.click(screen.getByRole('button', { name: 'PM' }));
+    expect(march()).toBe('0.50');
+    expect(putCalls(calls)).toEqual([]);
+  });
+
+  it('saves an edited leaf as canonical person-months for each unit', async () => {
+    const user = userEvent.setup();
+    const calls = await renderStaffing({ allocations: [] });
+
+    async function editMarch(unit: string, typed: string) {
+      if (unit !== 'PM') {
+        await user.click(screen.getByRole('button', { name: unit }));
+      }
+      await user.click(screen.getByRole('button', { name: 'Edit Ada Lovelace Mar 2026' }));
+      const input = screen.getByLabelText('Allocation for Ada Lovelace in Mar 2026');
+      await user.clear(input);
+      await user.type(input, typed);
+      await user.click(screen.getByRole('button', { name: 'Save Ada Lovelace Mar 2026' }));
+      await waitFor(() => {
+        expect(screen.queryByLabelText('Allocation for Ada Lovelace in Mar 2026')).toBeNull();
+      });
+    }
+
+    await editMarch('PM', '0.125');
+    await editMarch('Hours', '88');
+    await editMarch('%', '125');
+    await editMarch('Cost', '7880');
+
+    expect(putCalls(calls).map((call) => call.body)).toEqual([
+      { breakdownItemId: 'wbs-leaf', employeeId: ada.id, month: '2026-03', amount: 0.125 },
+      { breakdownItemId: 'wbs-leaf', employeeId: ada.id, month: '2026-03', amount: 0.5 },
+      { breakdownItemId: 'wbs-leaf', employeeId: ada.id, month: '2026-03', amount: 1.25 },
+      { breakdownItemId: 'wbs-leaf', employeeId: ada.id, month: '2026-03', amount: 0.5 },
+    ]);
+  });
+
+  it('shows a missing rate and does not save cost without an effective rate', async () => {
+    const user = userEvent.setup();
+    const calls = await renderStaffing({ rates: [] });
+
+    await user.click(screen.getByRole('button', { name: 'Cost' }));
+
+    expect(monthCell('Ada Lovelace', 'Mar 2026').textContent).toContain('No rate');
+    expect(amountText(monthCell('Ada Lovelace', 'Mar 2026'))).toBe('€0.00');
+
+    await user.click(screen.getByRole('button', { name: 'Edit Ada Lovelace Mar 2026' }));
+    const input = screen.getByLabelText('Allocation for Ada Lovelace in Mar 2026');
+    await user.clear(input);
+    await user.type(input, '100');
+    await user.click(screen.getByRole('button', { name: 'Save Ada Lovelace Mar 2026' }));
+
+    expect(screen.getByRole('alert').textContent).toContain('no effective rate');
+    expect((input as HTMLInputElement).value).toBe('100');
+    expect(putCalls(calls)).toEqual([]);
+  });
+
+  it('keeps the editor open when saving fails', async () => {
+    const user = userEvent.setup();
+    await renderStaffing({
+      allocations: [],
+      onAllocation: () => jsonResponse({ error: { code: 'conflict', message: 'Allocation was rejected' } }, 409),
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Edit Ada Lovelace Mar 2026' }));
+    const input = screen.getByLabelText('Allocation for Ada Lovelace in Mar 2026');
+    await user.clear(input);
+    await user.type(input, '0.4');
+    await user.click(screen.getByRole('button', { name: 'Save Ada Lovelace Mar 2026' }));
+
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Allocation was rejected');
+    expect((screen.getByLabelText('Allocation for Ada Lovelace in Mar 2026') as HTMLInputElement).value).toBe('0.4');
+  });
+
+  it('refetches allocations after a successful save and leaves the other queries alone', async () => {
+    const user = userEvent.setup();
+    const allocations: Allocation[] = [];
+    const calls = await renderStaffing({
+      allocations,
+      onAllocation: (body) => {
+        const input = body as { breakdownItemId: string; employeeId: string; month: string; amount: number };
+        const saved: Allocation = {
+          id: 'alloc-saved',
+          breakdownItemId: input.breakdownItemId,
+          employeeId: input.employeeId,
+          month: input.month,
+          amount: input.amount,
+          updatedAt: '2026-10-04T00:00:00.000Z',
+        };
+        allocations.splice(0, allocations.length, saved);
+        return jsonResponse(saved);
+      },
+    });
+    const reads = (url: string) => calls.filter((call) => call.method === 'GET' && call.url === url).length;
+    const before = {
+      projects: reads('/api/projects'),
+      employees: reads('/api/employees'),
+      rates: reads('/api/rates'),
+      wbs: reads('/api/projects/prj-1/wbs'),
+      allocations: reads('/api/projects/prj-1/allocations'),
+    };
+
+    await user.click(screen.getByRole('button', { name: 'Edit Ada Lovelace Mar 2026' }));
+    const input = screen.getByLabelText('Allocation for Ada Lovelace in Mar 2026');
+    await user.clear(input);
+    await user.type(input, '0.5');
+    await user.click(screen.getByRole('button', { name: 'Save Ada Lovelace Mar 2026' }));
+
+    await waitFor(() => {
+      expect(amountText(monthCell('Ada Lovelace', 'Mar 2026'))).toBe('0.50');
+    });
+    expect(screen.queryByLabelText('Allocation for Ada Lovelace in Mar 2026')).toBeNull();
+    expect(reads('/api/projects/prj-1/allocations')).toBe(before.allocations + 1);
+    expect(reads('/api/projects')).toBe(before.projects);
+    expect(reads('/api/employees')).toBe(before.employees);
+    expect(reads('/api/rates')).toBe(before.rates);
+    expect(reads('/api/projects/prj-1/wbs')).toBe(before.wbs);
+  });
+
+  it('reconciles visible totals with the displayed detail cells', async () => {
+    const employees: Employee[] = [
+      { id: 'e1', name: 'One', role: 'Engineer', weeklyHours: 40 },
+      { id: 'e2', name: 'Two', role: 'Engineer', weeklyHours: 40 },
+      { id: 'e3', name: 'Three', role: 'Engineer', weeklyHours: 40 },
+    ];
+    await renderStaffing({
+      projects: [{ id: 'prj-march', name: 'March Only', startDate: '2026-03-01', endDate: '2026-03-31' }],
+      wbs: [{ id: 'wbs-leaf', projectId: 'prj-march', parentId: null, name: 'Design' }],
+      employees,
+      rates: [],
+      allocations: employees.map((employee) => staffingAllocation(1.004, 'wbs-leaf', '2026-03', employee.id)),
+    });
+
+    const table = screen.getByRole('table', { name: 'Staffing for Design' });
+    const body = table.querySelector('tbody');
+    const foot = table.querySelector('tfoot');
+    if (!body || !foot) {
+      throw new Error('Missing staffing totals');
+    }
+    const detail = Array.from(body.querySelectorAll('td:not(.staff-total) .staff-amount')).map((node) => node.textContent);
+    const rowTotals = Array.from(body.querySelectorAll('.staff-total .staff-amount')).map((node) => node.textContent);
+    const footer = Array.from(foot.querySelectorAll('.staff-amount')).map((node) => node.textContent);
+
+    expect(detail).toEqual(['1.01', '1.00', '1.00']);
+    expect(rowTotals).toEqual(['1.01', '1.00', '1.00']);
+    expect(footer).toEqual(['3.01', '3.01']);
+    expect(Number(detail.reduce((sum, value) => sum + Number(value), 0).toFixed(2))).toBe(3.01);
   });
 });

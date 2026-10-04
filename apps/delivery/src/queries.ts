@@ -2,10 +2,13 @@ import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/re
 import {
   createWbsItem,
   deleteWbsItem,
+  listEmployees,
   listProjectAllocations,
   listProjectWbs,
   listProjects,
+  listRates,
   moveWbsItem,
+  putAllocationCell,
   renameWbsItem,
 } from './api';
 
@@ -25,6 +28,8 @@ export function createDeliveryQueryClient(): QueryClient {
 
 export const deliveryQueryKeys = {
   projects: ['delivery', 'projects'] as const,
+  employees: ['delivery', 'employees'] as const,
+  rates: ['delivery', 'rates'] as const,
   wbs: (projectId: string) => ['delivery', 'wbs', projectId] as const,
   allocations: (projectId: string) => ['delivery', 'allocations', projectId] as const,
 };
@@ -33,6 +38,20 @@ export function useProjects() {
   return useQuery({
     queryKey: deliveryQueryKeys.projects,
     queryFn: listProjects,
+  });
+}
+
+export function useEmployees() {
+  return useQuery({
+    queryKey: deliveryQueryKeys.employees,
+    queryFn: listEmployees,
+  });
+}
+
+export function useRates() {
+  return useQuery({
+    queryKey: deliveryQueryKeys.rates,
+    queryFn: listRates,
   });
 }
 
@@ -83,5 +102,18 @@ export function useDeleteWbsItem(projectId: string) {
   return useMutation({
     mutationFn: (itemId: string) => deleteWbsItem(itemId),
     onSuccess: () => invalidateProjectWbs(queryClient, projectId),
+  });
+}
+
+export function useSaveAllocation(projectId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { breakdownItemId: string; employeeId: string; month: string; amount: number }) =>
+      putAllocationCell(input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: deliveryQueryKeys.allocations(projectId),
+        exact: true,
+      }),
   });
 }

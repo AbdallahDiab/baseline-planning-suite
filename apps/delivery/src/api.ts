@@ -1,4 +1,4 @@
-import type { Allocation, ApiErrorBody, BreakdownItem, Project } from '@baseline/contracts';
+import type { Allocation, ApiErrorBody, BreakdownItem, Employee, Project, RateRecord } from '@baseline/contracts';
 
 /**
  * Typed same-origin client. Presentation components do not call fetch.
@@ -25,6 +25,14 @@ export function requestErrorMessage(error: unknown): string {
 
 export function listProjects(): Promise<Project[]> {
   return request<Project[]>('/api/projects');
+}
+
+export function listEmployees(): Promise<Employee[]> {
+  return request<Employee[]>('/api/employees');
+}
+
+export function listRates(): Promise<RateRecord[]> {
+  return request<RateRecord[]>('/api/rates');
 }
 
 export function listProjectWbs(projectId: string): Promise<BreakdownItem[]> {
@@ -65,6 +73,23 @@ export function moveWbsItem(itemId: string, parentId: string | null): Promise<Br
 export function deleteWbsItem(itemId: string): Promise<void> {
   return request<void>(`/api/wbs/${encodeURIComponent(itemId)}`, {
     method: 'DELETE',
+  });
+}
+
+export function putAllocationCell(input: {
+  breakdownItemId: string;
+  employeeId: string;
+  month: string;
+  amount: number;
+}): Promise<Allocation> {
+  return request<Allocation>('/api/allocations/cell', {
+    method: 'PUT',
+    body: JSON.stringify({
+      breakdownItemId: input.breakdownItemId,
+      employeeId: input.employeeId,
+      month: input.month,
+      amount: input.amount,
+    }),
   });
 }
 

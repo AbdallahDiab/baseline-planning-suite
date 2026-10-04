@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import type { Project } from '@baseline/contracts';
+import type { DisplayCurrency, Project } from '@baseline/contracts';
 import { requestErrorMessage } from './api';
 import { ProjectSelector } from './ProjectSelector';
-import { useProjectAllocations, useProjectWbs, useProjects } from './queries';
+import { useEmployees, useProjectAllocations, useProjectWbs, useProjects, useRates } from './queries';
+import { StaffingGrid } from './StaffingGrid';
+import { firstStaffingItemId } from './staffing-view';
 import { WbsTree } from './WbsTree';
 
-export function ProjectWorkspace() {
+export function ProjectWorkspace({ displayCurrency }: { displayCurrency: DisplayCurrency }) {
   const projectsQuery = useProjects();
   const [chosenProjectId, setChosenProjectId] = useState<string | null>(null);
 
@@ -32,12 +34,42 @@ export function ProjectWorkspace() {
   return (
     <>
       <ProjectSelector projects={projectsQuery.data} project={project} onSelect={setChosenProjectId} />
-      <ProjectWbs key={project.id} projectId={project.id} />
+      <ProjectPanel key={project.id} project={project} displayCurrency={displayCurrency} />
     </>
   );
 }
 
-function ProjectWbs({ projectId }: { projectId: string }) {
+function ProjectPanel({ project, displayCurrency }: { project: Project; displayCurrency: DisplayCurrency }) {
+  const wbsQuery = useProjectWbs(project.id);
+  const [chosenItemId, setChosenItemId] = useState<string | null>(null);
+  const items = wbsQuery.data ?? [];
+  const selectedItemId = items.some((item) => item.id === chosenItemId) ? chosenItemId : firstStaffingItemId(items);
+
+  return (
+    <>
+      <WorkBreakdown
+        projectId={project.id}
+        selectedItemId={selectedItemId}
+        onSelectStaffing={setChosenItemId}
+      />
+      <StaffingSection
+        project={project}
+        displayCurrency={displayCurrency}
+        selectedItemId={selectedItemId}
+      />
+    </>
+  );
+}
+
+function WorkBreakdown({
+  projectId,
+  selectedItemId,
+  onSelectStaffing,
+}: {
+  projectId: string;
+  selectedItemId: string | null;
+  onSelectStaffing: (itemId: string) => void;
+}) {
   const wbsQuery = useProjectWbs(projectId);
   const allocationsQuery = useProjectAllocations(projectId);
 
@@ -70,9 +102,110 @@ function ProjectWbs({ projectId }: { projectId: string }) {
         </div>
       ) : null}
       {wbsQuery.data && allocationsQuery.data ? (
-        <WbsTree projectId={projectId} items={wbsQuery.data} allocations={allocationsQuery.data} />
+        <WbsTree
+          projectId={projectId}
+          items={wbsQuery.data}
+          allocations={allocationsQuery.data}
+          selectedItemId={selectedItemId}
+          onSelectStaffing={onSelectStaffing}
+        />
       ) : null}
     </section>
+  );
+}
+
+function StaffingSection({
+  project,
+  displayCurrency,
+  selectedItemId,
+}: {
+  project: Project;
+  displayCurrency: DisplayCurrency;
+  selectedItemId: string | null;
+}) {
+  const wbsQuery = useProjectWbs(project.id);
+  const allocationsQuery = useProjectAllocations(project.id);
+  const employeesQuery = useEmployees();
+  const ratesQuery = useRates();
+
+  return (
+    <section aria-label="Staffing">
+      <h3>Staffing</h3>
+      {employeesQuery.isPending || ratesQuery.isPending || wbsQuery.isPending || allocationsQuery.isPending ? (
+        <p>Loading staffing…</p>
+      ) : null}
+      {employeesQuery.isError ? (
+        <StaffingError
+          message={requestErrorMessage(employeesQuery.error)}
+          label="Retry employees"
+          pending={employeesQuery.isFetching}
+          onRetry={() => void employeesQuery.refetch()}
+        />
+      ) : null}
+      {ratesQuery.isError ? (
+        <StaffingError
+          message={requestErrorMessage(ratesQuery.error)}
+          label="Retry rates"
+          pending={ratesQuery.isFetching}
+          onRetry={() => void ratesQuery.refetch()}
+        />
+      ) : null}
+      {wbsQuery.isError ? (
+        <StaffingError
+          message={requestErrorMessage(wbsQuery.error)}
+          label="Retry staffing work breakdown"
+          pending={wbsQuery.isFetching}
+          onRetry={() => void wbsQuery.refetch()}
+        />
+      ) : null}
+      {allocationsQuery.isError ? (
+        <StaffingError
+          message={requestErrorMessage(allocationsQuery.error)}
+          label="Retry staffing allocations"
+          pending={allocationsQuery.isFetching}
+          onRetry={() => void allocationsQuery.refetch()}
+        />
+      ) : null}
+      {wbsQuery.data && allocationsQuery.data && employeesQuery.data && ratesQuery.data ? (
+        wbsQuery.data.length === 0 ? (
+          <p>This project has no work breakdown items yet.</p>
+        ) : selectedItemId === null ? (
+          <p>No leaf work breakdown item is available.</p>
+        ) : (
+          <StaffingGrid
+            projectId={project.id}
+            project={project}
+            items={wbsQuery.data}
+            allocations={allocationsQuery.data}
+            employees={employeesQuery.data}
+            rates={ratesQuery.data}
+            selectedItemId={selectedItemId}
+            displayCurrency={displayCurrency}
+          />
+        )
+      ) : null}
+    </section>
+  );
+}
+
+function StaffingError({
+  message,
+  label,
+  pending,
+  onRetry,
+}: {
+  message: string;
+  label: string;
+  pending: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <div>
+      <p role="alert">{message}</p>
+      <button type="button" onClick={onRetry} disabled={pending}>
+        {label}
+      </button>
+    </div>
   );
 }
 

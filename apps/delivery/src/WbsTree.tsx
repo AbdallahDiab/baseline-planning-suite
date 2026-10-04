@@ -10,10 +10,14 @@ export function WbsTree({
   projectId,
   items,
   allocations,
+  selectedItemId,
+  onSelectStaffing,
 }: {
   projectId: string;
   items: readonly BreakdownItem[];
   allocations: readonly Allocation[];
+  selectedItemId: string | null;
+  onSelectStaffing: (itemId: string) => void;
 }) {
   const allocationRefs = toAllocationRefs(allocations);
   const nodes = buildWbsTree(items);
@@ -161,6 +165,8 @@ export function WbsTree({
               active={active}
               pending={pending}
               error={error}
+              selectedItemId={selectedItemId}
+              onSelectStaffing={onSelectStaffing}
               onOpen={(itemId, kind) => {
                 open({ kind, itemId });
               }}
