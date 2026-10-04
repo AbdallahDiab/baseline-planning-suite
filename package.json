@@ -5,7 +5,7 @@
   "scripts": {
     "build": "pnpm --filter \"./apps/*\" --if-present run build",
     "typecheck": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" --if-present run typecheck",
-    "test": "pnpm --filter \"./packages/*\" --if-present run test"
+    "test": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" --if-present run test"
   },
   "pnpm": {
     "overrides": {
