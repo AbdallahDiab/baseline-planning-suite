@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import type { RemoteAppProps } from '@baseline/contracts';
+import type { DisplayCurrency, RemoteAppProps } from '@baseline/contracts';
 import { EmployeeDetail } from './EmployeeDetail';
 import { EmployeeRegister } from './EmployeeRegister';
 import { createPeopleQueryClient } from './queries';
@@ -13,6 +13,7 @@ function isHosted(props: Partial<RemoteAppProps>): props is RemoteAppProps {
 export default function PeopleApp(props: Partial<RemoteAppProps>) {
   const [queryClient] = useState(() => createPeopleQueryClient());
   const hosted = isHosted(props);
+  const displayCurrency: DisplayCurrency = hosted ? props.displayCurrency : 'EUR';
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   return (
@@ -27,7 +28,11 @@ export default function PeopleApp(props: Partial<RemoteAppProps>) {
           )}
         </header>
         {selectedEmployeeId ? (
-          <EmployeeDetail employeeId={selectedEmployeeId} onBack={() => setSelectedEmployeeId(null)} />
+          <EmployeeDetail
+            employeeId={selectedEmployeeId}
+            displayCurrency={displayCurrency}
+            onBack={() => setSelectedEmployeeId(null)}
+          />
         ) : (
           <EmployeeRegister onOpen={setSelectedEmployeeId} />
         )}

@@ -1,4 +1,4 @@
-import type { ApiErrorBody, CapacitySummary, Employee } from '@baseline/contracts';
+import type { ApiErrorBody, CapacitySummary, Employee, RateRecord } from '@baseline/contracts';
 
 /**
  * Typed same-origin client. Presentation components do not call fetch.
@@ -34,6 +34,43 @@ export function getEmployee(employeeId: string): Promise<Employee> {
 
 export function listCapacity(): Promise<CapacitySummary[]> {
   return request<CapacitySummary[]>('/api/capacity');
+}
+
+export interface RateWrite {
+  validFrom: string;
+  hourlyCost: number;
+}
+
+export function listRates(employeeId: string): Promise<RateRecord[]> {
+  const query = new URLSearchParams({ employeeId });
+  return request<RateRecord[]>(`/api/rates?${query.toString()}`);
+}
+
+export function createRate(employeeId: string, rate: RateWrite): Promise<RateRecord> {
+  return request<RateRecord>('/api/rates', {
+    method: 'POST',
+    body: JSON.stringify({
+      employeeId,
+      validFrom: rate.validFrom,
+      hourlyCost: rate.hourlyCost,
+    }),
+  });
+}
+
+export function updateRate(rateId: string, rate: RateWrite): Promise<RateRecord> {
+  return request<RateRecord>(`/api/rates/${encodeURIComponent(rateId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      validFrom: rate.validFrom,
+      hourlyCost: rate.hourlyCost,
+    }),
+  });
+}
+
+export function deleteRate(rateId: string): Promise<void> {
+  return request<void>(`/api/rates/${encodeURIComponent(rateId)}`, {
+    method: 'DELETE',
+  });
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

@@ -1,5 +1,6 @@
-import { QueryClient, useQuery } from '@tanstack/react-query';
-import { getEmployee, listCapacity, listEmployees } from './api';
+import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { createRate, deleteRate, getEmployee, listCapacity, listEmployees, listRates, updateRate } from './api';
+import type { RateWrite } from './api';
 
 export function createPeopleQueryClient(): QueryClient {
   return new QueryClient({
@@ -40,5 +41,36 @@ export function useCapacity() {
   return useQuery({
     queryKey: peopleQueryKeys.capacity,
     queryFn: listCapacity,
+  });
+}
+
+export function useRates(employeeId: string) {
+  return useQuery({
+    queryKey: peopleQueryKeys.rates(employeeId),
+    queryFn: () => listRates(employeeId),
+  });
+}
+
+export function useCreateRate(employeeId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (rate: RateWrite) => createRate(employeeId, rate),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: peopleQueryKeys.rates(employeeId) }),
+  });
+}
+
+export function useUpdateRate(employeeId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { rateId: string; rate: RateWrite }) => updateRate(input.rateId, input.rate),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: peopleQueryKeys.rates(employeeId) }),
+  });
+}
+
+export function useDeleteRate(employeeId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (rateId: string) => deleteRate(rateId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: peopleQueryKeys.rates(employeeId) }),
   });
 }
