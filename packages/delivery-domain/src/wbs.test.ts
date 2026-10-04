@@ -71,30 +71,38 @@ describe('WBS validation', () => {
   });
 
   it('moves only inside the same project and inside the depth limit', () => {
-    expect(validateMoveWbsItem(items, 'c', 'd')).toEqual({ ok: true, value: undefined });
-    expect(validateMoveWbsItem(items, 'b', 'd')).toEqual({ ok: true, value: undefined });
-    expect(validateMoveWbsItem(items, 'a', null)).toEqual({ ok: true, value: undefined });
+    expect(validateMoveWbsItem(items, 'c', 'd', [])).toEqual({ ok: true, value: undefined });
+    expect(validateMoveWbsItem(items, 'b', 'd', [])).toEqual({ ok: true, value: undefined });
+    expect(validateMoveWbsItem(items, 'a', null, [])).toEqual({ ok: true, value: undefined });
 
-    expect(validateMoveWbsItem(items, 'c', 'c')).toEqual({
+    expect(validateMoveWbsItem(items, 'c', 'c', [])).toEqual({
       ok: false,
       error: { code: 'under-self', itemId: 'c' },
     });
-    expect(validateMoveWbsItem(items, 'b', 'c')).toEqual({
+    expect(validateMoveWbsItem(items, 'b', 'c', [])).toEqual({
       ok: false,
       error: { code: 'cycle', itemId: 'b', parentId: 'c' },
     });
-    expect(validateMoveWbsItem(items, 'c', 'e')).toEqual({
+    expect(validateMoveWbsItem(items, 'c', 'e', [])).toEqual({
       ok: false,
       error: { code: 'cross-project', itemId: 'c', parentId: 'e' },
     });
-    expect(validateMoveWbsItem(items, 'a', 'd')).toEqual({
+    expect(validateMoveWbsItem(items, 'a', 'd', [])).toEqual({
       ok: false,
       error: { code: 'depth-exceeded', itemId: 'c', resultingDepth: 3 },
     });
-    expect(validateMoveWbsItem(items, 'missing', null)).toEqual({
+    expect(validateMoveWbsItem(items, 'missing', null, [])).toEqual({
       ok: false,
       error: { code: 'not-found', itemId: 'missing' },
     });
+  });
+
+  it('rejects a move under an allocated leaf and allows the same move without that allocation', () => {
+    expect(validateMoveWbsItem(items, 'g', 'f', [{ breakdownItemId: 'f' }])).toEqual({
+      ok: false,
+      error: { code: 'allocated-leaf', parentId: 'f' },
+    });
+    expect(validateMoveWbsItem(items, 'g', 'f', [])).toEqual({ ok: true, value: undefined });
   });
 
   it('rejects a new child on an allocated leaf and keeps the allocation', () => {

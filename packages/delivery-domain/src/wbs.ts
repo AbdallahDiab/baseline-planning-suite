@@ -31,7 +31,8 @@ export type WbsMoveError =
   | { code: 'cross-project'; itemId: string; parentId: string }
   | { code: 'under-self'; itemId: string }
   | { code: 'cycle'; itemId: string; parentId: string }
-  | { code: 'depth-exceeded'; itemId: string; resultingDepth: number };
+  | { code: 'depth-exceeded'; itemId: string; resultingDepth: number }
+  | { code: 'allocated-leaf'; parentId: string };
 
 export type WbsAddChildError =
   | { code: 'invalid-tree'; tree: WbsTreeError }
@@ -156,10 +157,15 @@ export function validateWbsTree(items: readonly WbsItem[]): DomainResult<void, W
   return ok(undefined);
 }
 
+/**
+ * Moving an item under an allocated leaf is rejected.
+ * Existing allocations stay where they are.
+ */
 export function validateMoveWbsItem(
   items: readonly WbsItem[],
   itemId: string,
   newParentId: string | null,
+  allocations: readonly WbsAllocationRef[],
 ): DomainResult<void, WbsMoveError> {
   const indexed = requireTree(items);
   if (!indexed.ok) {
@@ -197,6 +203,9 @@ export function validateMoveWbsItem(
       itemId: violation.itemId,
       resultingDepth: violation.depth,
     });
+  }
+  if (newParentId !== null && hasDirectAllocation(allocations, newParentId)) {
+    return err({ code: 'allocated-leaf', parentId: newParentId });
   }
   return ok(undefined);
 }
