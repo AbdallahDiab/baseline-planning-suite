@@ -4,7 +4,7 @@ WORKDIR /repo
 
 RUN corepack enable && corepack prepare pnpm@10.18.2 --activate
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps ./apps
 COPY packages ./packages
 COPY tools ./tools
@@ -36,3 +36,19 @@ RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 EXPOSE 8080
 
 ENTRYPOINT ["/entrypoint.sh"]
+
+FROM node:22-bookworm-slim AS api
+
+WORKDIR /app
+
+COPY --from=build /repo/apps/api/dist ./dist
+COPY fixtures/baseline-seed.json ./fixtures/baseline-seed.json
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV DATA_FILE=/data/baseline-store.json
+ENV SEED_FILE=/app/fixtures/baseline-seed.json
+
+EXPOSE 3000
+
+CMD ["node", "dist/server.mjs"]

@@ -12,9 +12,10 @@ export interface EmployeeMonthCapacity {
   personMonths: number;
   oversubscribed: boolean;
   /**
-   * The most recently edited contributing allocation.
-   * Null when the month is not oversubscribed, and when every contributing
-   * allocation is still unedited (`updatedAt === null`).
+   * The most recently edited allocation that contributes person-months.
+   * A zero person-month row stays in the total and is not eligible as the cause.
+   * Null when the month is not oversubscribed, and when every positive
+   * contributor is still unedited (`updatedAt === null`).
    */
   cause: CapacityCause | null;
 }
@@ -78,7 +79,9 @@ export function summarizeEmployeeCapacity(
 }
 
 function editedCause(group: readonly DomainAllocation[]): CapacityCause | null {
-  const edited = group.filter((allocation) => allocation.updatedAt !== null);
+  const edited = group.filter(
+    (allocation) => allocation.updatedAt !== null && allocation.personMonths > 0,
+  );
   if (edited.length === 0) {
     return null;
   }

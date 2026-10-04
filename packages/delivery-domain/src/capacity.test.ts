@@ -81,6 +81,53 @@ describe('cross-project capacity', () => {
     ]);
   });
 
+  it('keeps an earlier positive edit as the cause when a later zero allocation is edited', () => {
+    const [summary] = summarizeEmployeeCapacity([
+      allocation({
+        id: 'alloc-a',
+        personMonths: 0.7,
+        updatedAt: '2026-06-01T00:00:00Z',
+      }),
+      allocation({
+        id: 'alloc-b',
+        personMonths: 0.6,
+        updatedAt: null,
+      }),
+      allocation({
+        id: 'alloc-c',
+        personMonths: 0,
+        updatedAt: '2026-06-20T00:00:00Z',
+      }),
+    ]);
+    expect(summary).toEqual({
+      employeeId: 'emp-023',
+      month: '2026-06',
+      personMonths: 0.7 + 0.6,
+      oversubscribed: true,
+      cause: { allocationId: 'alloc-a', updatedAt: '2026-06-01T00:00:00Z' },
+    });
+  });
+
+  it('does not invent a cause from an edited zero allocation when positive contributors are unedited', () => {
+    const [summary] = summarizeEmployeeCapacity([
+      allocation({ id: 'alloc-054', personMonths: 0.65, breakdownItemId: 'wbs-prj-1' }),
+      allocation({ id: 'alloc-101', personMonths: 0.65, breakdownItemId: 'wbs-prj-4' }),
+      allocation({
+        id: 'alloc-zero',
+        personMonths: 0,
+        breakdownItemId: 'wbs-other',
+        updatedAt: '2026-06-20T00:00:00Z',
+      }),
+    ]);
+    expect(summary).toEqual({
+      employeeId: 'emp-023',
+      month: '2026-06',
+      personMonths: 1.3,
+      oversubscribed: true,
+      cause: null,
+    });
+  });
+
   it('breaks equal edit timestamps by the greater allocation id', () => {
     const [summary] = summarizeEmployeeCapacity([
       allocation({
