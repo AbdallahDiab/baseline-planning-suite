@@ -43,7 +43,13 @@ export default {
     extensions: ['.ts', '.tsx', '.js'],
   },
   module: {
-    rules: [typescriptRule],
+    rules: [
+      typescriptRule,
+      {
+        test: /\.css$/,
+        type: 'css/auto',
+      },
+    ],
   },
   plugins: [
     new rspack.HtmlRspackPlugin({

@@ -1,0 +1,122 @@
+.people {
+  color: #1c2430;
+  font-family: "Segoe UI", sans-serif;
+  line-height: 1.4;
+  max-width: 960px;
+}
+
+.people :focus-visible {
+  outline: 2px solid #0b5cab;
+  outline-offset: 2px;
+}
+
+.people h2,
+.people h3 {
+  margin: 0 0 8px;
+}
+
+.people-header {
+  align-items: baseline;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.people-user {
+  color: #4b5563;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+  max-width: 360px;
+}
+
+.people input,
+.people button {
+  font: inherit;
+}
+
+.people input {
+  padding: 6px 8px;
+}
+
+.people button {
+  padding: 6px 10px;
+}
+
+.people table {
+  border-collapse: collapse;
+  margin: 12px 0 20px;
+  width: 100%;
+}
+
+.people caption {
+  caption-side: top;
+  font-weight: 650;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.people th,
+.people td {
+  border-bottom: 1px solid #d5dbe3;
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.capacity-over {
+  color: #8a1c1c;
+  font-weight: 700;
+}
+
+.people [role='alert'] {
+  color: #8a1c1c;
+}
+
+.details {
+  display: grid;
+  gap: 8px 16px;
+  grid-template-columns: 160px 1fr;
+  margin: 0 0 24px;
+}
+
+.details dt {
+  font-weight: 650;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rate-form {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 20px;
+  max-width: 360px;
+}
+
+.rate-form label {
+  display: grid;
+  gap: 4px;
+}
+
+.visually-hidden {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
