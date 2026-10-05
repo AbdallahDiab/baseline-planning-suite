@@ -1,0 +1,141 @@
+body {
+  margin: 0;
+}
+
+.app-shell {
+  --shell-bg: #1b2838;
+  --shell-text: #f4f7fb;
+  --shell-muted: #c5d0dc;
+  --workspace: #f3f5f8;
+  --surface: #ffffff;
+  --border: #d5dbe3;
+  --text: #1c2430;
+  --danger: #8a1c1c;
+  --danger-surface: #fdecec;
+
+  background: var(--workspace);
+  color: var(--text);
+  font-family: "Segoe UI", sans-serif;
+  line-height: 1.4;
+  min-height: 100vh;
+}
+
+.shell-header,
+.shell-body,
+.shell-nav,
+.shell-nav-links,
+.shell-workspace,
+.remote-panel {
+  box-sizing: border-box;
+}
+
+.shell-header {
+  align-items: center;
+  background: var(--shell-bg);
+  color: var(--shell-text);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  justify-content: space-between;
+  padding: 16px 24px;
+}
+
+.shell-header h1 {
+  font-size: 1.25rem;
+  font-weight: 650;
+  margin: 0;
+}
+
+.shell-meta {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.shell-currency,
+.shell-user {
+  margin: 0;
+}
+
+.shell-meta-label {
+  color: var(--shell-muted);
+  margin-right: 8px;
+}
+
+.shell-body {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+}
+
+.shell-nav {
+  background: #152232;
+}
+
+.shell-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 12px;
+  position: sticky;
+  top: 0;
+}
+
+.shell-nav a {
+  border-radius: 4px;
+  color: var(--shell-text);
+  display: block;
+  padding: 8px 12px;
+  text-decoration: none;
+}
+
+.shell-nav a:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.shell-nav a:focus-visible {
+  outline: 2px solid var(--shell-text);
+  outline-offset: 2px;
+}
+
+.shell-workspace {
+  background: var(--workspace);
+  min-width: 0;
+  padding: 24px;
+}
+
+.shell-workspace > p {
+  margin: 0 0 16px;
+}
+
+.shell-workspace > [role='alert'] {
+  background: var(--danger-surface);
+  color: var(--danger);
+  padding: 8px 10px;
+}
+
+.remote-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 0 0 24px;
+  padding: 20px 24px;
+  scroll-margin-top: 16px;
+}
+
+.remote-panel > h2 {
+  font-size: 1.15rem;
+  margin: 0 0 16px;
+}
+
+@media (max-width: 720px) {
+  .shell-body {
+    grid-template-columns: 1fr;
+  }
+
+  .shell-nav-links {
+    flex-direction: row;
+    flex-wrap: wrap;
+    position: static;
+  }
+}

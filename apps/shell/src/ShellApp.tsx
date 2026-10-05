@@ -3,6 +3,7 @@ import type { ActiveUser, DisplayCurrency } from '@baseline/contracts';
 import { createPlanningEventBus } from './planning-events';
 import { RemotePanel } from './RemotePanel';
 import { loadRuntimeConfig, type RuntimeConfig } from './runtime-config';
+import './styles.css';
 
 const displayCurrency: DisplayCurrency = 'EUR';
 
@@ -35,36 +36,50 @@ export function ShellApp() {
   }, []);
 
   return (
-    <main>
-      <h1>Baseline Planning Suite</h1>
-      <nav aria-label="Sections">
-        <span>People</span>
-        <span>Delivery</span>
-      </nav>
-      <p>displayCurrency: {displayCurrency}</p>
-      {configError ? <p role="alert">{configError}</p> : null}
-      {config ? (
-        <>
-          <RemotePanel
-            title="People"
-            remoteName="people"
-            entry={config.peopleRemoteUrl}
-            displayCurrency={displayCurrency}
-            activeUser={activeUser}
-            planningEvents={planningEvents}
-          />
-          <RemotePanel
-            title="Delivery"
-            remoteName="delivery"
-            entry={config.deliveryRemoteUrl}
-            displayCurrency={displayCurrency}
-            activeUser={activeUser}
-            planningEvents={planningEvents}
-          />
-        </>
-      ) : configError ? null : (
-        <p>Loading runtime configuration…</p>
-      )}
-    </main>
+    <div className="app-shell">
+      <header className="shell-header">
+        <h1>Baseline Planning Suite</h1>
+        <div className="shell-meta">
+          <p className="shell-currency">
+            <span className="shell-meta-label">Display currency</span>
+            <span>{displayCurrency}</span>
+          </p>
+          <p className="shell-user">{activeUser.name}</p>
+        </div>
+      </header>
+      <div className="shell-body">
+        <nav className="shell-nav" aria-label="Sections">
+          <div className="shell-nav-links">
+            <a href="#people-section">People</a>
+            <a href="#delivery-section">Delivery</a>
+          </div>
+        </nav>
+        <main className="shell-workspace">
+          {configError ? <p role="alert">{configError}</p> : null}
+          {config ? (
+            <>
+              <RemotePanel
+                title="People"
+                remoteName="people"
+                entry={config.peopleRemoteUrl}
+                displayCurrency={displayCurrency}
+                activeUser={activeUser}
+                planningEvents={planningEvents}
+              />
+              <RemotePanel
+                title="Delivery"
+                remoteName="delivery"
+                entry={config.deliveryRemoteUrl}
+                displayCurrency={displayCurrency}
+                activeUser={activeUser}
+                planningEvents={planningEvents}
+              />
+            </>
+          ) : configError ? null : (
+            <p>Loading runtime configuration…</p>
+          )}
+        </main>
+      </div>
+    </div>
   );
 }
