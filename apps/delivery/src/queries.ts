@@ -1,7 +1,9 @@
+import type { PlanningEventBus } from '@baseline/contracts';
 import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createWbsItem,
   deleteWbsItem,
+  listCapacity,
   listEmployees,
   listProjectAllocations,
   listProjectWbs,
@@ -30,6 +32,7 @@ export const deliveryQueryKeys = {
   projects: ['delivery', 'projects'] as const,
   employees: ['delivery', 'employees'] as const,
   rates: ['delivery', 'rates'] as const,
+  capacity: ['delivery', 'capacity'] as const,
   wbs: (projectId: string) => ['delivery', 'wbs', projectId] as const,
   allocations: (projectId: string) => ['delivery', 'allocations', projectId] as const,
 };
@@ -52,6 +55,13 @@ export function useRates() {
   return useQuery({
     queryKey: deliveryQueryKeys.rates,
     queryFn: listRates,
+  });
+}
+
+export function useCapacity() {
+  return useQuery({
+    queryKey: deliveryQueryKeys.capacity,
+    queryFn: listCapacity,
   });
 }
 
@@ -105,15 +115,24 @@ export function useDeleteWbsItem(projectId: string) {
   });
 }
 
-export function useSaveAllocation(projectId: string) {
+export function useSaveAllocation(projectId: string, planningEvents?: PlanningEventBus) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { breakdownItemId: string; employeeId: string; month: string; amount: number }) =>
       putAllocationCell(input),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
+    onSuccess: (saved) => {
+      void queryClient.invalidateQueries({
         queryKey: deliveryQueryKeys.allocations(projectId),
         exact: true,
-      }),
+      });
+      void queryClient.invalidateQueries({ queryKey: deliveryQueryKeys.capacity });
+      planningEvents?.publish({
+        type: 'allocations-changed',
+        employeeId: saved.employeeId,
+        month: saved.month,
+        projectId,
+        allocationId: saved.id,
+      });
+    },
   });
 }

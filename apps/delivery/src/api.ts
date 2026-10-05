@@ -1,4 +1,12 @@
-import type { Allocation, ApiErrorBody, BreakdownItem, Employee, Project, RateRecord } from '@baseline/contracts';
+import type {
+  Allocation,
+  ApiErrorBody,
+  BreakdownItem,
+  CapacitySummary,
+  Employee,
+  Project,
+  RateRecord,
+} from '@baseline/contracts';
 
 /**
  * Typed same-origin client. Presentation components do not call fetch.
@@ -33,6 +41,10 @@ export function listEmployees(): Promise<Employee[]> {
 
 export function listRates(): Promise<RateRecord[]> {
   return request<RateRecord[]>('/api/rates');
+}
+
+export function listCapacity(): Promise<CapacitySummary[]> {
+  return request<CapacitySummary[]>('/api/capacity');
 }
 
 export function listProjectWbs(projectId: string): Promise<BreakdownItem[]> {

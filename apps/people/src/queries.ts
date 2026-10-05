@@ -1,3 +1,4 @@
+import type { PlanningEventBus } from '@baseline/contracts';
 import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createRate, deleteRate, getEmployee, listCapacity, listEmployees, listRates, updateRate } from './api';
 import type { RateWrite } from './api';
@@ -51,26 +52,39 @@ export function useRates(employeeId: string) {
   });
 }
 
-export function useCreateRate(employeeId: string) {
+function publishRatesChanged(planningEvents: PlanningEventBus | undefined, employeeId: string) {
+  planningEvents?.publish({ type: 'rates-changed', employeeId });
+}
+
+export function useCreateRate(employeeId: string, planningEvents?: PlanningEventBus) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (rate: RateWrite) => createRate(employeeId, rate),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: peopleQueryKeys.rates(employeeId) }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: peopleQueryKeys.rates(employeeId) });
+      publishRatesChanged(planningEvents, employeeId);
+    },
   });
 }
 
-export function useUpdateRate(employeeId: string) {
+export function useUpdateRate(employeeId: string, planningEvents?: PlanningEventBus) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: { rateId: string; rate: RateWrite }) => updateRate(input.rateId, input.rate),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: peopleQueryKeys.rates(employeeId) }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: peopleQueryKeys.rates(employeeId) });
+      publishRatesChanged(planningEvents, employeeId);
+    },
   });
 }
 
-export function useDeleteRate(employeeId: string) {
+export function useDeleteRate(employeeId: string, planningEvents?: PlanningEventBus) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (rateId: string) => deleteRate(rateId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: peopleQueryKeys.rates(employeeId) }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: peopleQueryKeys.rates(employeeId) });
+      publishRatesChanged(planningEvents, employeeId);
+    },
   });
 }

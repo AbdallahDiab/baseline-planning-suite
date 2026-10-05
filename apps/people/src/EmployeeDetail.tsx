@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { CapacitySummary, DisplayCurrency, RateRecord } from '@baseline/contracts';
+import type { CapacitySummary, DisplayCurrency, PlanningEventBus, RateRecord } from '@baseline/contracts';
 import { requestErrorMessage } from './api';
 import type { RateWrite } from './api';
 import { formatCapacityPercent, formatHourlyCost, formatPersonMonths, sortRatesDescending } from './format';
@@ -11,18 +11,20 @@ type RateEditor = { mode: 'create' } | { mode: 'edit'; rate: RateRecord };
 export function EmployeeDetail({
   employeeId,
   displayCurrency,
+  planningEvents,
   onBack,
 }: {
   employeeId: string;
   displayCurrency: DisplayCurrency;
+  planningEvents?: PlanningEventBus;
   onBack: () => void;
 }) {
   const employeeQuery = useEmployee(employeeId);
   const capacityQuery = useCapacity();
   const ratesQuery = useRates(employeeId);
-  const createRate = useCreateRate(employeeId);
-  const updateRate = useUpdateRate(employeeId);
-  const deleteRate = useDeleteRate(employeeId);
+  const createRate = useCreateRate(employeeId, planningEvents);
+  const updateRate = useUpdateRate(employeeId, planningEvents);
+  const deleteRate = useDeleteRate(employeeId, planningEvents);
   const [editor, setEditor] = useState<RateEditor | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [confirmingRateId, setConfirmingRateId] = useState<string | null>(null);
