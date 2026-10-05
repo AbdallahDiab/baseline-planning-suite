@@ -1,4 +1,14 @@
-import type { Allocation, BreakdownItem, Employee, Project, RateRecord, RemoteAppProps } from '@baseline/contracts';
+import type {
+  Allocation,
+  BreakdownItem,
+  CapacitySummary,
+  Employee,
+  PlanningChangeEvent,
+  PlanningEventBus,
+  Project,
+  RateRecord,
+  RemoteAppProps,
+} from '@baseline/contracts';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -63,6 +73,8 @@ function installFetch(options?: {
   projects?: Project[];
   employees?: Employee[];
   rates?: RateRecord[];
+  capacity?: CapacitySummary[];
+  onCapacity?: () => Response;
   wbs?: BreakdownItem[];
   allocations?: Allocation[];
   failProjectsOnce?: boolean;
@@ -95,6 +107,13 @@ function installFetch(options?: {
 
       if (method === 'GET' && url === '/api/rates') {
         return jsonResponse(options?.rates ?? []);
+      }
+
+      if (method === 'GET' && url === '/api/capacity') {
+        if (options?.onCapacity) {
+          return options.onCapacity();
+        }
+        return jsonResponse(options?.capacity ?? []);
       }
 
       const wbsMatch = /^\/api\/projects\/([^/]+)\/wbs$/.exec(url);
@@ -517,14 +536,41 @@ function putCalls(calls: FetchCall[]): FetchCall[] {
   return calls.filter((call) => call.method === 'PUT');
 }
 
-async function renderStaffing(options?: Parameters<typeof installFetch>[0]) {
+function createRecordingBus() {
+  const events: PlanningChangeEvent[] = [];
+  const listeners = new Set<(event: PlanningChangeEvent) => void>();
+  const bus: PlanningEventBus = {
+    publish(event) {
+      events.push(event);
+      for (const listener of [...listeners]) {
+        listener(event);
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+  return { bus, events };
+}
+
+async function renderStaffing(options?: Parameters<typeof installFetch>[0] & { planningEvents?: PlanningEventBus }) {
+  const { planningEvents, ...fetchOptions } = options ?? {};
   const calls = installFetch({
     employees: [ada],
     rates: goldenRates,
     allocations: [staffingAllocation(0.5)],
-    ...options,
+    ...fetchOptions,
   });
-  render(<DeliveryApp displayCurrency="EUR" activeUser={{ id: 'shell-operator', name: 'Baseline Operator' }} />);
+  render(
+    <DeliveryApp
+      displayCurrency="EUR"
+      activeUser={{ id: 'shell-operator', name: 'Baseline Operator' }}
+      planningEvents={planningEvents}
+    />,
+  );
   await screen.findByRole('table', { name: /^Staffing for / });
   return calls;
 }
@@ -664,8 +710,10 @@ describe('Delivery staffing grid', () => {
 
   it('keeps the editor open when saving fails', async () => {
     const user = userEvent.setup();
+    const { bus, events } = createRecordingBus();
     await renderStaffing({
       allocations: [],
+      planningEvents: bus,
       onAllocation: () => jsonResponse({ error: { code: 'conflict', message: 'Allocation was rejected' } }, 409),
     });
 
@@ -677,13 +725,16 @@ describe('Delivery staffing grid', () => {
 
     expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Allocation was rejected');
     expect((screen.getByLabelText('Allocation for Ada Lovelace in Mar 2026') as HTMLInputElement).value).toBe('0.4');
+    expect(events).toEqual([]);
   });
 
   it('refetches allocations after a successful save and leaves the other queries alone', async () => {
     const user = userEvent.setup();
+    const { bus, events } = createRecordingBus();
     const allocations: Allocation[] = [];
     const calls = await renderStaffing({
       allocations,
+      planningEvents: bus,
       onAllocation: (body) => {
         const input = body as { breakdownItemId: string; employeeId: string; month: string; amount: number };
         const saved: Allocation = {
@@ -705,6 +756,7 @@ describe('Delivery staffing grid', () => {
       rates: reads('/api/rates'),
       wbs: reads('/api/projects/prj-1/wbs'),
       allocations: reads('/api/projects/prj-1/allocations'),
+      capacity: reads('/api/capacity'),
     };
 
     await user.click(screen.getByRole('button', { name: 'Edit Ada Lovelace Mar 2026' }));
@@ -718,10 +770,22 @@ describe('Delivery staffing grid', () => {
     });
     expect(screen.queryByLabelText('Allocation for Ada Lovelace in Mar 2026')).toBeNull();
     expect(reads('/api/projects/prj-1/allocations')).toBe(before.allocations + 1);
+    await waitFor(() => {
+      expect(reads('/api/capacity')).toBe(before.capacity + 1);
+    });
     expect(reads('/api/projects')).toBe(before.projects);
     expect(reads('/api/employees')).toBe(before.employees);
     expect(reads('/api/rates')).toBe(before.rates);
     expect(reads('/api/projects/prj-1/wbs')).toBe(before.wbs);
+    expect(events).toEqual([
+      {
+        type: 'allocations-changed',
+        employeeId: ada.id,
+        month: '2026-03',
+        projectId: ledger.id,
+        allocationId: 'alloc-saved',
+      },
+    ]);
   });
 
   it('reconciles visible totals with the displayed detail cells', async () => {
@@ -752,5 +816,130 @@ describe('Delivery staffing grid', () => {
     expect(rowTotals).toEqual(['1.01', '1.00', '1.00']);
     expect(footer).toEqual(['3.01', '3.01']);
     expect(Number(detail.reduce((sum, value) => sum + Number(value), 0).toFixed(2))).toBe(3.01);
+  });
+
+  it('refetches rates and updates the open cost view when rates change', async () => {
+    const user = userEvent.setup();
+    const { bus } = createRecordingBus();
+    const rates = goldenRates.map((rate) => ({ ...rate }));
+    const calls = await renderStaffing({ rates, planningEvents: bus });
+    await user.click(screen.getByRole('button', { name: 'Cost' }));
+    expect(amountText(monthCell('Ada Lovelace', 'Mar 2026'))).toBe('€7,880.00');
+    const before = calls.filter((call) => call.method === 'GET' && call.url === '/api/rates').length;
+
+    const changed = rates.find((rate) => rate.id === 'rate-002');
+    if (!changed) {
+      throw new Error('Missing rate-002');
+    }
+    changed.hourlyCost = 120;
+    bus.publish({ type: 'rates-changed', employeeId: ada.id });
+
+    await waitFor(() => {
+      expect(calls.filter((call) => call.method === 'GET' && call.url === '/api/rates').length).toBe(before + 1);
+    });
+    await waitFor(() => {
+      expect(amountText(monthCell('Ada Lovelace', 'Mar 2026'))).not.toBe('€7,880.00');
+    });
+  });
+
+  it('shows over capacity and names an in-project cause, including on a parent', async () => {
+    const user = userEvent.setup();
+    await renderStaffing({
+      capacity: [
+        {
+          employeeId: ada.id,
+          month: '2026-03',
+          totalPersonMonths: 1.25,
+          overCapacity: true,
+          causeAllocationId: 'alloc-wbs-leaf-2026-03',
+        },
+      ],
+    });
+
+    expect(await within(monthCell('Ada Lovelace', 'Mar 2026')).findByText('Over capacity')).toBeTruthy();
+    const leaf = monthCell('Ada Lovelace', 'Mar 2026');
+    expect(amountText(leaf)).toBe('0.50');
+    expect(leaf.textContent).toContain('Over capacity');
+    expect(leaf.textContent).toContain('Cause: Design');
+    expect(leaf.textContent).toContain('1.25 PM');
+    expect(leaf.textContent).toContain('125.0%');
+
+    await user.click(planStaffingButton('Ledger migration'));
+    const parent = monthCell('Ada Lovelace', 'Mar 2026');
+    expect(amountText(parent)).toBe('0.50');
+    expect(parent.textContent).toContain('Cause: Design');
+    expect(parent.textContent).not.toContain('Cause: Ledger migration');
+  });
+
+  it('does not invent a cause when causeAllocationId is null', async () => {
+    await renderStaffing({
+      capacity: [
+        {
+          employeeId: ada.id,
+          month: '2026-03',
+          totalPersonMonths: 1.3,
+          overCapacity: true,
+          causeAllocationId: null,
+        },
+      ],
+    });
+
+    expect(await within(monthCell('Ada Lovelace', 'Mar 2026')).findByText('Over capacity')).toBeTruthy();
+    const cell = monthCell('Ada Lovelace', 'Mar 2026');
+    expect(cell.textContent).toContain('Over capacity');
+    expect(cell.textContent).not.toContain('Cause:');
+  });
+
+  it('does not invent a local assignment for a cause outside the project', async () => {
+    await renderStaffing({
+      capacity: [
+        {
+          employeeId: ada.id,
+          month: '2026-03',
+          totalPersonMonths: 1.3,
+          overCapacity: true,
+          causeAllocationId: 'alloc-other-project',
+        },
+      ],
+    });
+
+    expect(await within(monthCell('Ada Lovelace', 'Mar 2026')).findByText('Over capacity')).toBeTruthy();
+    const cell = monthCell('Ada Lovelace', 'Mar 2026');
+    expect(cell.textContent).toContain('Over capacity');
+    expect(cell.textContent).not.toContain('Cause:');
+    expect(cell.textContent).not.toContain('alloc-other-project');
+  });
+
+  it('keeps the staffing grid usable when capacity fails and can retry', async () => {
+    const user = userEvent.setup();
+    let attempts = 0;
+    await renderStaffing({
+      onCapacity: () => {
+        attempts += 1;
+        if (attempts === 1) {
+          return jsonResponse({ error: { code: 'unavailable', message: 'Capacity is unavailable' } }, 500);
+        }
+        return jsonResponse([
+          {
+            employeeId: ada.id,
+            month: '2026-03',
+            totalPersonMonths: 1.25,
+            overCapacity: true,
+            causeAllocationId: null,
+          },
+        ]);
+      },
+    });
+
+    expect(amountText(monthCell('Ada Lovelace', 'Mar 2026'))).toBe('0.50');
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Capacity is unavailable');
+    expect(monthCell('Ada Lovelace', 'Mar 2026').textContent).not.toContain('Over capacity');
+    expect(screen.queryByText('Within capacity')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Retry capacity' }));
+
+    expect(await within(monthCell('Ada Lovelace', 'Mar 2026')).findByText('Over capacity')).toBeTruthy();
+    expect(screen.queryByText('Capacity is unavailable')).toBeNull();
+    expect(attempts).toBe(2);
   });
 });
