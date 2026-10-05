@@ -1,5 +1,14 @@
 .people {
-  color: #1c2430;
+  --surface: #ffffff;
+  --muted-surface: #f4f6f8;
+  --border: #d5dbe3;
+  --text: #1c2430;
+  --muted: #4b5563;
+  --accent: #1f4e79;
+  --danger: #8a1c1c;
+  --danger-surface: #fdecec;
+
+  color: var(--text);
   font-family: "Segoe UI", sans-serif;
   line-height: 1.4;
   max-width: 960px;
@@ -15,16 +24,22 @@
   margin: 0 0 8px;
 }
 
+.people h3 {
+  margin-top: 20px;
+}
+
 .people-header {
   align-items: baseline;
+  border-bottom: 2px solid var(--accent);
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
 }
 
 .people-user {
-  color: #4b5563;
+  color: var(--muted);
   font-size: 0.9rem;
   margin: 0;
 }
@@ -32,7 +47,7 @@
 .toolbar {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   margin-bottom: 16px;
   max-width: 360px;
 }
@@ -43,16 +58,28 @@
 }
 
 .people input {
-  padding: 6px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
 }
 
 .people button {
-  padding: 6px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 6px 12px;
+}
+
+.people button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .people table {
   border-collapse: collapse;
-  margin: 12px 0 20px;
+  margin: 12px 0 24px;
   width: 100%;
 }
 
@@ -65,30 +92,51 @@
 
 .people th,
 .people td {
-  border-bottom: 1px solid #d5dbe3;
-  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
   text-align: left;
   vertical-align: top;
 }
 
+.people thead th {
+  background: var(--muted-surface);
+  font-weight: 650;
+}
+
+.people tbody tr:hover {
+  background: #f7f9fb;
+}
+
 .capacity-over {
-  color: #8a1c1c;
+  background: var(--danger-surface);
+  color: var(--danger);
   font-weight: 700;
 }
 
 .people [role='alert'] {
-  color: #8a1c1c;
+  background: var(--danger-surface);
+  color: var(--danger);
+  margin: 8px 0;
+  padding: 8px 10px;
 }
 
 .details {
+  background: var(--muted-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   display: grid;
   gap: 8px 16px;
   grid-template-columns: 160px 1fr;
   margin: 0 0 24px;
+  padding: 12px 16px;
 }
 
 .details dt {
   font-weight: 650;
+}
+
+.details dd {
+  margin: 0;
 }
 
 .actions {
@@ -98,10 +146,14 @@
 }
 
 .rate-form {
+  background: var(--muted-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   display: grid;
   gap: 12px;
   margin: 12px 0 20px;
   max-width: 360px;
+  padding: 16px;
 }
 
 .rate-form label {
