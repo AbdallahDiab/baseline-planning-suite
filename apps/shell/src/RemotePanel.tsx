@@ -24,6 +24,7 @@ export function RemotePanel({
   entry,
   displayCurrency,
   activeUser,
+  planningEvents,
 }: RemotePanelProps) {
   const [state, setState] = useState<PanelState>({ status: 'loading' });
 
@@ -56,7 +57,11 @@ export function RemotePanel({
       ) : null}
       {state.status === 'ready' ? (
         <RemoteErrorBoundary remoteName={title}>
-          <state.Component displayCurrency={displayCurrency} activeUser={activeUser} />
+          <state.Component
+            displayCurrency={displayCurrency}
+            activeUser={activeUser}
+            planningEvents={planningEvents}
+          />
         </RemoteErrorBoundary>
       ) : null}
     </section>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import type { DisplayCurrency, RemoteAppProps } from '@baseline/contracts';
+import { DeliveryRuntimeSync } from './DeliveryRuntimeSync';
 import { ProjectWorkspace } from './ProjectWorkspace';
 import { createDeliveryQueryClient } from './queries';
 import './styles.css';
@@ -16,6 +17,7 @@ export default function DeliveryApp(props: Partial<RemoteAppProps>) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <DeliveryRuntimeSync planningEvents={props.planningEvents} />
       <section data-remote="delivery" className="delivery">
         <header className="delivery-header">
           <h2>Delivery</h2>
@@ -25,7 +27,7 @@ export default function DeliveryApp(props: Partial<RemoteAppProps>) {
             <p className="delivery-user">Running standalone.</p>
           )}
         </header>
-        <ProjectWorkspace displayCurrency={displayCurrency} />
+        <ProjectWorkspace displayCurrency={displayCurrency} planningEvents={props.planningEvents} />
       </section>
     </QueryClientProvider>
   );

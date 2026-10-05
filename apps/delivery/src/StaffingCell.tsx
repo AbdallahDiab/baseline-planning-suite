@@ -1,9 +1,11 @@
+import type { CapacityCellMarker } from './capacity-display';
 import type { StaffingDisplayCell } from './staffing-view';
 import { monthColumnLabel } from './staffing-view';
 
 export function StaffingCell({
   cell,
   employeeName,
+  capacity,
   readOnly,
   editing,
   value,
@@ -16,6 +18,7 @@ export function StaffingCell({
 }: {
   cell: StaffingDisplayCell;
   employeeName: string;
+  capacity: CapacityCellMarker | null;
   readOnly: boolean;
   editing: boolean;
   value: string;
@@ -69,6 +72,14 @@ export function StaffingCell({
         <>
           <span className="staff-amount">{cell.text}</span>
           {cell.coverageLabel ? <span className="staff-coverage">{cell.coverageLabel}</span> : null}
+          {capacity ? (
+            <>
+              <span className="staff-capacity">Over capacity</span>
+              <span className="staff-capacity-total">{capacity.totalLabel}</span>
+              <span className="staff-capacity-total">{capacity.percentLabel}</span>
+              {capacity.causeName ? <span className="staff-cause">Cause: {capacity.causeName}</span> : null}
+            </>
+          ) : null}
           {readOnly ? null : (
             <button type="button" onClick={onEdit}>
               {`Edit ${employeeName} ${monthLabel}`}

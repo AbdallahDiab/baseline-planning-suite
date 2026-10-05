@@ -1,4 +1,4 @@
-import type { CapacitySummary, Employee, RateRecord } from '@baseline/contracts';
+import type { CapacitySummary, Employee, PlanningChangeEvent, PlanningEventBus, RateRecord } from '@baseline/contracts';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -118,6 +118,26 @@ function installFetch(options?: {
     }),
   );
   return calls;
+}
+
+function createRecordingBus() {
+  const events: PlanningChangeEvent[] = [];
+  const listeners = new Set<(event: PlanningChangeEvent) => void>();
+  const bus: PlanningEventBus = {
+    publish(event) {
+      events.push(event);
+      for (const listener of [...listeners]) {
+        listener(event);
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+  return { bus, events };
 }
 
 async function openEmployee(user: ReturnType<typeof userEvent.setup>, name: string) {
@@ -306,6 +326,110 @@ describe('People remote', () => {
     expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Rate could not be saved');
     expect((screen.getByLabelText('Valid from') as HTMLInputElement).value).toBe('2020-02-01');
     expect((screen.getByLabelText('Hourly cost') as HTMLInputElement).value).toBe('42');
+  });
+
+  it('publishes rates-changed after a successful create', async () => {
+    const user = userEvent.setup();
+    const { bus, events } = createRecordingBus();
+    installFetch();
+    render(<PeopleApp planningEvents={bus} />);
+    await openEmployee(user, 'Adaeze Okafor');
+
+    await user.click(screen.getByRole('button', { name: 'Add rate' }));
+    await user.type(screen.getByLabelText('Valid from'), '2020-02-01');
+    await user.type(screen.getByLabelText('Hourly cost'), '110');
+    await user.click(screen.getByRole('button', { name: 'Save rate' }));
+
+    await waitFor(() => {
+      expect(events).toEqual([{ type: 'rates-changed', employeeId: 'emp-001' }]);
+    });
+  });
+
+  it('publishes rates-changed after a successful update', async () => {
+    const user = userEvent.setup();
+    const { bus, events } = createRecordingBus();
+    installFetch({
+      rates: [{ id: 'rate-a', employeeId: 'emp-001', validFrom: '2025-01-01', hourlyCost: 90 }],
+    });
+    render(<PeopleApp planningEvents={bus} />);
+    await openEmployee(user, 'Adaeze Okafor');
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const hourlyCost = screen.getByLabelText('Hourly cost');
+    await user.clear(hourlyCost);
+    await user.type(hourlyCost, '12.5');
+    await user.click(screen.getByRole('button', { name: 'Save rate' }));
+
+    await waitFor(() => {
+      expect(events).toEqual([{ type: 'rates-changed', employeeId: 'emp-001' }]);
+    });
+    expect(events[0]).not.toHaveProperty('hourlyCost');
+  });
+
+  it('publishes rates-changed after a successful delete', async () => {
+    const user = userEvent.setup();
+    const { bus, events } = createRecordingBus();
+    installFetch({
+      rates: [{ id: 'rate-a', employeeId: 'emp-001', validFrom: '2025-01-01', hourlyCost: 90 }],
+    });
+    render(<PeopleApp planningEvents={bus} />);
+    await openEmployee(user, 'Adaeze Okafor');
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() => {
+      expect(events).toEqual([{ type: 'rates-changed', employeeId: 'emp-001' }]);
+    });
+  });
+
+  it('publishes nothing when a rate mutation fails', async () => {
+    const user = userEvent.setup();
+    const { bus, events } = createRecordingBus();
+    installFetch({
+      onPost: () =>
+        jsonResponse(
+          {
+            error: {
+              code: 'conflict',
+              message: 'Rate could not be saved',
+            },
+          },
+          409,
+        ),
+    });
+    render(<PeopleApp planningEvents={bus} />);
+    await openEmployee(user, 'Adaeze Okafor');
+
+    await user.click(screen.getByRole('button', { name: 'Add rate' }));
+    await user.type(screen.getByLabelText('Valid from'), '2020-02-01');
+    await user.type(screen.getByLabelText('Hourly cost'), '42');
+    await user.click(screen.getByRole('button', { name: 'Save rate' }));
+
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Rate could not be saved');
+    expect(events).toEqual([]);
+  });
+
+  it('refetches capacity when allocations change', async () => {
+    const { bus } = createRecordingBus();
+    const calls = installFetch();
+    render(<PeopleApp planningEvents={bus} />);
+    await screen.findByText('Adaeze Okafor');
+    const before = calls.filter((call) => call.method === 'GET' && call.url.startsWith('/api/capacity')).length;
+
+    bus.publish({
+      type: 'allocations-changed',
+      employeeId: 'emp-001',
+      month: '2026-03',
+      projectId: 'prj-1',
+      allocationId: 'alloc-001',
+    });
+
+    await waitFor(() => {
+      expect(calls.filter((call) => call.method === 'GET' && call.url.startsWith('/api/capacity')).length).toBe(
+        before + 1,
+      );
+    });
   });
 
   it('renders standalone without hosted runtime props', async () => {

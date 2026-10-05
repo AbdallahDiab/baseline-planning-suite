@@ -1,13 +1,19 @@
 import { useState } from 'react';
-import type { DisplayCurrency, Project } from '@baseline/contracts';
+import type { DisplayCurrency, PlanningEventBus, Project } from '@baseline/contracts';
 import { requestErrorMessage } from './api';
 import { ProjectSelector } from './ProjectSelector';
-import { useEmployees, useProjectAllocations, useProjectWbs, useProjects, useRates } from './queries';
+import { useCapacity, useEmployees, useProjectAllocations, useProjectWbs, useProjects, useRates } from './queries';
 import { StaffingGrid } from './StaffingGrid';
 import { firstStaffingItemId } from './staffing-view';
 import { WbsTree } from './WbsTree';
 
-export function ProjectWorkspace({ displayCurrency }: { displayCurrency: DisplayCurrency }) {
+export function ProjectWorkspace({
+  displayCurrency,
+  planningEvents,
+}: {
+  displayCurrency: DisplayCurrency;
+  planningEvents?: PlanningEventBus;
+}) {
   const projectsQuery = useProjects();
   const [chosenProjectId, setChosenProjectId] = useState<string | null>(null);
 
@@ -34,12 +40,20 @@ export function ProjectWorkspace({ displayCurrency }: { displayCurrency: Display
   return (
     <>
       <ProjectSelector projects={projectsQuery.data} project={project} onSelect={setChosenProjectId} />
-      <ProjectPanel key={project.id} project={project} displayCurrency={displayCurrency} />
+      <ProjectPanel key={project.id} project={project} displayCurrency={displayCurrency} planningEvents={planningEvents} />
     </>
   );
 }
 
-function ProjectPanel({ project, displayCurrency }: { project: Project; displayCurrency: DisplayCurrency }) {
+function ProjectPanel({
+  project,
+  displayCurrency,
+  planningEvents,
+}: {
+  project: Project;
+  displayCurrency: DisplayCurrency;
+  planningEvents?: PlanningEventBus;
+}) {
   const wbsQuery = useProjectWbs(project.id);
   const [chosenItemId, setChosenItemId] = useState<string | null>(null);
   const items = wbsQuery.data ?? [];
@@ -56,6 +70,7 @@ function ProjectPanel({ project, displayCurrency }: { project: Project; displayC
         project={project}
         displayCurrency={displayCurrency}
         selectedItemId={selectedItemId}
+        planningEvents={planningEvents}
       />
     </>
   );
@@ -118,15 +133,18 @@ function StaffingSection({
   project,
   displayCurrency,
   selectedItemId,
+  planningEvents,
 }: {
   project: Project;
   displayCurrency: DisplayCurrency;
   selectedItemId: string | null;
+  planningEvents?: PlanningEventBus;
 }) {
   const wbsQuery = useProjectWbs(project.id);
   const allocationsQuery = useProjectAllocations(project.id);
   const employeesQuery = useEmployees();
   const ratesQuery = useRates();
+  const capacityQuery = useCapacity();
 
   return (
     <section aria-label="Staffing">
@@ -172,16 +190,29 @@ function StaffingSection({
         ) : selectedItemId === null ? (
           <p>No leaf work breakdown item is available.</p>
         ) : (
-          <StaffingGrid
-            projectId={project.id}
-            project={project}
-            items={wbsQuery.data}
-            allocations={allocationsQuery.data}
-            employees={employeesQuery.data}
-            rates={ratesQuery.data}
-            selectedItemId={selectedItemId}
-            displayCurrency={displayCurrency}
-          />
+          <>
+            {capacityQuery.isPending ? <p>Checking capacity…</p> : null}
+            {capacityQuery.isError ? (
+              <StaffingError
+                message={requestErrorMessage(capacityQuery.error)}
+                label="Retry capacity"
+                pending={capacityQuery.isFetching}
+                onRetry={() => void capacityQuery.refetch()}
+              />
+            ) : null}
+            <StaffingGrid
+              projectId={project.id}
+              project={project}
+              items={wbsQuery.data}
+              allocations={allocationsQuery.data}
+              employees={employeesQuery.data}
+              rates={ratesQuery.data}
+              capacity={capacityQuery.isSuccess ? capacityQuery.data : null}
+              selectedItemId={selectedItemId}
+              displayCurrency={displayCurrency}
+              planningEvents={planningEvents}
+            />
+          </>
         )
       ) : null}
     </section>
