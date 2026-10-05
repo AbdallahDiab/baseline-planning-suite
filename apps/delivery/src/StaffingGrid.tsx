@@ -1,6 +1,15 @@
 import { useRef, useState } from 'react';
-import type { Allocation, BreakdownItem, DisplayCurrency, Employee, RateRecord } from '@baseline/contracts';
+import type {
+  Allocation,
+  BreakdownItem,
+  CapacitySummary,
+  DisplayCurrency,
+  Employee,
+  PlanningEventBus,
+  RateRecord,
+} from '@baseline/contracts';
 import { requestErrorMessage } from './api';
+import { capacityMarkerForCell } from './capacity-display';
 import { useSaveAllocation } from './queries';
 import { StaffingCell } from './StaffingCell';
 import {
@@ -35,8 +44,10 @@ export function StaffingGrid({
   allocations,
   employees,
   rates,
+  capacity,
   selectedItemId,
   displayCurrency,
+  planningEvents,
 }: {
   projectId: string;
   project: { startDate: string; endDate: string };
@@ -44,13 +55,15 @@ export function StaffingGrid({
   allocations: readonly Allocation[];
   employees: readonly Employee[];
   rates: readonly RateRecord[];
+  capacity: readonly CapacitySummary[] | null;
   selectedItemId: string;
   displayCurrency: DisplayCurrency;
+  planningEvents?: PlanningEventBus;
 }) {
   const [unit, setUnit] = useState<StaffingUnit>('pm');
   const [editor, setEditor] = useState<EditorState | null>(null);
   const saveLock = useRef(false);
-  const saveAllocation = useSaveAllocation(projectId);
+  const saveAllocation = useSaveAllocation(projectId, planningEvents);
   const activeEditor = editor !== null && editor.itemId === selectedItemId ? editor : null;
 
   const model = buildStaffingGrid({
@@ -200,6 +213,11 @@ export function StaffingGrid({
                       <StaffingCell
                         cell={cell}
                         employeeName={row.employee.name}
+                        capacity={
+                          capacity
+                            ? capacityMarkerForCell(capacity, cell.employeeId, cell.month, allocations, items)
+                            : null
+                        }
                         readOnly={grid.readOnly}
                         editing={editing}
                         value={editing && activeEditor ? activeEditor.value : ''}
