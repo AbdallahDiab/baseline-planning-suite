@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ActiveUser, DisplayCurrency } from '@baseline/contracts';
+import { createPlanningEventBus } from './planning-events';
 import { RemotePanel } from './RemotePanel';
 import { loadRuntimeConfig, type RuntimeConfig } from './runtime-config';
 
@@ -11,6 +12,7 @@ const activeUser: ActiveUser = {
 };
 
 export function ShellApp() {
+  const [planningEvents] = useState(createPlanningEventBus);
   const [config, setConfig] = useState<RuntimeConfig | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
 
@@ -49,6 +51,7 @@ export function ShellApp() {
             entry={config.peopleRemoteUrl}
             displayCurrency={displayCurrency}
             activeUser={activeUser}
+            planningEvents={planningEvents}
           />
           <RemotePanel
             title="Delivery"
@@ -56,6 +59,7 @@ export function ShellApp() {
             entry={config.deliveryRemoteUrl}
             displayCurrency={displayCurrency}
             activeUser={activeUser}
+            planningEvents={planningEvents}
           />
         </>
       ) : configError ? null : (

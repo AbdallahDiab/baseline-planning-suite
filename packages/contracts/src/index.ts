@@ -9,9 +9,32 @@ export interface ActiveUser {
   name: string;
 }
 
+/**
+ * A signal that authoritative data changed.
+ * Payloads identify what to refetch. They are not a second copy of business data.
+ */
+export type PlanningChangeEvent =
+  | {
+      type: 'rates-changed';
+      employeeId: string;
+    }
+  | {
+      type: 'allocations-changed';
+      employeeId: string;
+      month: string;
+      projectId: string;
+      allocationId: string;
+    };
+
+export interface PlanningEventBus {
+  publish(event: PlanningChangeEvent): void;
+  subscribe(listener: (event: PlanningChangeEvent) => void): () => void;
+}
+
 export interface RemoteAppProps {
   displayCurrency: DisplayCurrency;
   activeUser: ActiveUser;
+  planningEvents: PlanningEventBus;
 }
 
 /**
