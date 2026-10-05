@@ -47,7 +47,12 @@ export function RemotePanel({
   }, [entry, remoteName]);
 
   return (
-    <section aria-label={`${title} panel`} data-panel={remoteName}>
+    <section
+      id={`${remoteName}-section`}
+      className="remote-panel"
+      aria-label={`${title} panel`}
+      data-panel={remoteName}
+    >
       <h2>{title}</h2>
       {state.status === 'loading' ? <p>Loading {title}…</p> : null}
       {state.status === 'error' ? (
