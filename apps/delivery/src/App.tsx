@@ -6,13 +6,17 @@ import { ProjectWorkspace } from './ProjectWorkspace';
 import { createDeliveryQueryClient } from './queries';
 import './styles.css';
 
-function isHosted(props: Partial<RemoteAppProps>): props is RemoteAppProps {
+type HostedShellProps = Pick<RemoteAppProps, 'displayCurrency' | 'activeUser'>;
+
+function hasHostedShellProps(
+  props: Partial<RemoteAppProps>,
+): props is Partial<RemoteAppProps> & HostedShellProps {
   return props.displayCurrency !== undefined && props.activeUser !== undefined;
 }
 
 export default function DeliveryApp(props: Partial<RemoteAppProps>) {
   const [queryClient] = useState(() => createDeliveryQueryClient());
-  const hosted = isHosted(props);
+  const hosted = hasHostedShellProps(props);
   const displayCurrency: DisplayCurrency = hosted ? props.displayCurrency : 'EUR';
 
   return (

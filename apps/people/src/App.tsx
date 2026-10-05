@@ -7,13 +7,17 @@ import { PeopleRuntimeSync } from './PeopleRuntimeSync';
 import { createPeopleQueryClient } from './queries';
 import './styles.css';
 
-function isHosted(props: Partial<RemoteAppProps>): props is RemoteAppProps {
+type HostedShellProps = Pick<RemoteAppProps, 'displayCurrency' | 'activeUser'>;
+
+function hasHostedShellProps(
+  props: Partial<RemoteAppProps>,
+): props is Partial<RemoteAppProps> & HostedShellProps {
   return props.displayCurrency !== undefined && props.activeUser !== undefined;
 }
 
 export default function PeopleApp(props: Partial<RemoteAppProps>) {
   const [queryClient] = useState(() => createPeopleQueryClient());
-  const hosted = isHosted(props);
+  const hosted = hasHostedShellProps(props);
   const displayCurrency: DisplayCurrency = hosted ? props.displayCurrency : 'EUR';
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
