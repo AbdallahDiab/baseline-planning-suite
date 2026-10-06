@@ -66,6 +66,10 @@
   padding: 6px 12px;
 }
 
+.delivery button:not(:disabled) {
+  cursor: pointer;
+}
+
 .delivery button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
@@ -117,20 +121,72 @@
 }
 
 .wbs-tree ul {
-  border-left: 2px solid #c5d0dc;
-  margin-left: 10px;
-  padding-left: 18px;
+  border-left: 1px solid var(--border);
+  margin-left: 12px;
+  padding-left: 36px;
 }
 
 .wbs-node {
-  margin: 0 0 16px;
+  margin: 0 0 12px;
+}
+
+.wbs-node[data-depth='0'] {
+  margin-bottom: 20px;
+}
+
+.wbs-node[data-depth='0'] > .wbs-row .wbs-name {
+  font-weight: 700;
+}
+
+.wbs-node[data-depth='1'] > .wbs-row {
+  background: var(--muted-surface);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.wbs-node[data-depth='1'] > .wbs-row .wbs-name {
+  font-weight: 650;
+}
+
+.wbs-node[data-depth='2'] > .wbs-row .wbs-name {
+  font-weight: 550;
 }
 
 .wbs-row {
-  align-items: baseline;
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 8px 12px;
+}
+
+.wbs-toggle,
+.wbs-toggle-spacer {
+  flex: 0 0 28px;
+  width: 28px;
+}
+
+.delivery .wbs-toggle {
+  align-items: center;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+}
+
+.wbs-chevron {
+  border-bottom: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  display: inline-block;
+  height: 0.4em;
+  margin-top: -0.15em;
+  transform: rotate(45deg);
+  width: 0.4em;
+}
+
+.wbs-chevron-collapsed {
+  margin-left: -0.1em;
+  margin-top: 0;
+  transform: rotate(-45deg);
 }
 
 .wbs-name {
@@ -140,6 +196,42 @@
 .wbs-meta {
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.delivery .wbs-plan {
+  background: var(--surface);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 650;
+  margin-left: auto;
+}
+
+.delivery .wbs-plan[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.delivery .wbs-manage {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  padding: 6px 8px;
+}
+
+.wbs-manage-panel {
+  margin: 4px 0 8px 40px;
+}
+
+.wbs-manage-panel .wbs-actions {
+  margin: 0;
+}
+
+.delivery .wbs-danger {
+  background: var(--surface);
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 .wbs-actions,
