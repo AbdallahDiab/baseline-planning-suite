@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { BreakdownItem } from '@baseline/contracts';
 import type { WbsAllocationRef } from '@baseline/delivery-domain';
 import { WbsMoveForm, WbsNameForm } from './WbsForm';
@@ -49,21 +50,55 @@ export function WbsItem({
 }) {
   const itemId = node.item.id;
   const action = active !== null && active.kind !== 'create-root' && active.itemId === itemId ? active.kind : null;
-  const actionsDisabled = pending || (active !== null && action === null);
+  const ownsAction = action !== null;
+  const anotherActionActive = active !== null && !ownsAction;
+  const actionsDisabled = pending || anotherActionActive;
+  const branchLocked = active !== null || pending;
   const allocated = hasDirectAllocations(allocationRefs, itemId);
   const allowChild = canAddChild(items, itemId, allocationRefs);
   const selected = selectedItemId === itemId;
+  const hasChildren = node.children.length > 0;
+  const [expanded, setExpanded] = useState(true);
+  const [manageOpen, setManageOpen] = useState(false);
+  const manageVisible = ownsAction || (manageOpen && !anotherActionActive);
+  const childrenId = `wbs-children-${itemId}`;
+  const manageId = `wbs-manage-${itemId}`;
+
+  function openAction(kind: 'create-child' | 'rename' | 'move' | 'delete') {
+    if (kind === 'create-child') {
+      setExpanded(true);
+    }
+    onOpen(itemId, kind);
+  }
 
   return (
-    <li className="wbs-node">
+    <li className="wbs-node" data-depth={node.depth}>
       <div className="wbs-row">
+        {hasChildren ? (
+          <button
+            type="button"
+            className="wbs-toggle"
+            aria-expanded={expanded}
+            aria-controls={childrenId}
+            aria-label={expanded ? `Collapse ${node.item.name}` : `Expand ${node.item.name}`}
+            disabled={branchLocked}
+            onClick={() => {
+              setExpanded((open) => !open);
+            }}
+          >
+            <span className={expanded ? 'wbs-chevron' : 'wbs-chevron wbs-chevron-collapsed'} aria-hidden="true" />
+          </button>
+        ) : (
+          <span className="wbs-toggle-spacer" aria-hidden="true" />
+        )}
         <span className="wbs-name">{node.item.name}</span>
-        <span className="wbs-meta">{node.children.length > 0 ? 'Parent' : 'Leaf'}</span>
+        <span className="wbs-meta">{hasChildren ? 'Parent' : 'Leaf'}</span>
         <span className="wbs-meta">Depth {node.depth}</span>
         {allocated ? <span className="wbs-meta">Has direct allocations</span> : null}
         {selected ? <span className="wbs-meta">Selected for staffing</span> : null}
         <button
           type="button"
+          className="wbs-plan"
           aria-pressed={selected}
           onClick={() => {
             onSelectStaffing(itemId);
@@ -71,76 +106,93 @@ export function WbsItem({
         >
           Plan staffing
         </button>
+        <button
+          type="button"
+          className="wbs-manage"
+          aria-expanded={manageVisible}
+          aria-controls={manageId}
+          aria-label={`Manage ${node.item.name}`}
+          disabled={branchLocked}
+          onClick={() => {
+            setManageOpen((open) => !open);
+          }}
+        >
+          Manage
+        </button>
       </div>
-      <div className="wbs-actions" role="group" aria-label={`Actions for ${node.item.name}`}>
-        {action === null ? (
-          <>
-            {allowChild ? (
-              <button type="button" onClick={() => onOpen(itemId, 'create-child')} disabled={actionsDisabled}>
-                Add child
-              </button>
+      {manageVisible ? (
+        <div id={manageId} className="wbs-manage-panel">
+          <div className="wbs-actions" role="group" aria-label={`Actions for ${node.item.name}`}>
+            {action === null ? (
+              <>
+                {allowChild ? (
+                  <button type="button" onClick={() => openAction('create-child')} disabled={actionsDisabled}>
+                    Add child
+                  </button>
+                ) : null}
+                <button type="button" onClick={() => openAction('rename')} disabled={actionsDisabled}>
+                  Rename
+                </button>
+                <button type="button" onClick={() => openAction('move')} disabled={actionsDisabled}>
+                  Move
+                </button>
+                <button type="button" className="wbs-danger" onClick={() => openAction('delete')} disabled={actionsDisabled}>
+                  Delete
+                </button>
+              </>
             ) : null}
-            <button type="button" onClick={() => onOpen(itemId, 'rename')} disabled={actionsDisabled}>
-              Rename
-            </button>
-            <button type="button" onClick={() => onOpen(itemId, 'move')} disabled={actionsDisabled}>
-              Move
-            </button>
-            <button type="button" onClick={() => onOpen(itemId, 'delete')} disabled={actionsDisabled}>
-              Delete
-            </button>
-          </>
-        ) : null}
-        {action === 'create-child' ? (
-          <WbsNameForm
-            title={`Add child to ${node.item.name}`}
-            submitLabel="Add child"
-            initialName=""
-            pending={pending}
-            serverError={error}
-            onBeginAttempt={onBeginAttempt}
-            onSubmit={onCreateChild}
-            onCancel={onCancel}
-          />
-        ) : null}
-        {action === 'rename' ? (
-          <WbsNameForm
-            title={`Rename ${node.item.name}`}
-            submitLabel="Save name"
-            initialName={node.item.name}
-            pending={pending}
-            serverError={error}
-            onBeginAttempt={onBeginAttempt}
-            onSubmit={onRename}
-            onCancel={onCancel}
-          />
-        ) : null}
-        {action === 'move' ? (
-          <MoveControls
-            items={items}
-            itemId={itemId}
-            allocationRefs={allocationRefs}
-            pending={pending}
-            error={error}
-            onBeginAttempt={onBeginAttempt}
-            onMove={onMove}
-            onCancel={onCancel}
-          />
-        ) : null}
-        {action === 'delete' ? (
-          <DeleteControls
-            items={items}
-            item={node.item}
-            allocationRefs={allocationRefs}
-            pending={pending}
-            error={error}
-            onDelete={onDelete}
-            onCancel={onCancel}
-          />
-        ) : null}
-      </div>
-      {node.children.length > 0 ? (
-        <ul>
+            {action === 'create-child' ? (
+              <WbsNameForm
+                title={`Add child to ${node.item.name}`}
+                submitLabel="Add child"
+                initialName=""
+                pending={pending}
+                serverError={error}
+                onBeginAttempt={onBeginAttempt}
+                onSubmit={onCreateChild}
+                onCancel={onCancel}
+              />
+            ) : null}
+            {action === 'rename' ? (
+              <WbsNameForm
+                title={`Rename ${node.item.name}`}
+                submitLabel="Save name"
+                initialName={node.item.name}
+                pending={pending}
+                serverError={error}
+                onBeginAttempt={onBeginAttempt}
+                onSubmit={onRename}
+                onCancel={onCancel}
+              />
+            ) : null}
+            {action === 'move' ? (
+              <MoveControls
+                items={items}
+                itemId={itemId}
+                allocationRefs={allocationRefs}
+                pending={pending}
+                error={error}
+                onBeginAttempt={onBeginAttempt}
+                onMove={onMove}
+                onCancel={onCancel}
+              />
+            ) : null}
+            {action === 'delete' ? (
+              <DeleteControls
+                items={items}
+                item={node.item}
+                allocationRefs={allocationRefs}
+                pending={pending}
+                error={error}
+                onDelete={onDelete}
+                onCancel={onCancel}
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+      {hasChildren && expanded ? (
+        <ul id={childrenId}>
           {node.children.map((child) => (
             <WbsItem
               key={child.item.id}

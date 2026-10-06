@@ -10,7 +10,7 @@ import type {
   RemoteAppProps,
 } from '@baseline/contracts';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import DeliveryApp from './App';
 
@@ -192,6 +192,14 @@ function itemNamed(name: string): HTMLElement {
   return item;
 }
 
+async function openManage(user: UserEvent, itemName: string): Promise<HTMLElement> {
+  const toggle = screen.getByRole('button', { name: `Manage ${itemName}` });
+  if (toggle.getAttribute('aria-expanded') !== 'true') {
+    await user.click(toggle);
+  }
+  return screen.getByRole('group', { name: `Actions for ${itemName}` });
+}
+
 async function renderWorkspace(props?: Partial<RemoteAppProps>) {
   const calls = installFetch();
   render(props ? <DeliveryApp {...props} /> : <DeliveryApp />);
@@ -241,9 +249,7 @@ describe('Delivery WBS workspace', () => {
     expect(pilot.querySelector('.wbs-row')?.textContent).toContain('Has direct allocations');
     expect(design.querySelector('.wbs-row')?.textContent).not.toContain('Has direct allocations');
     expect(screen.queryByText('0.5')).toBeNull();
-    expect(within(screen.getByRole('group', { name: 'Actions for Pilot' })).queryByRole('button', { name: 'Add child' })).toBeNull();
-    expect(within(screen.getByRole('group', { name: 'Actions for Design' })).queryByRole('button', { name: 'Add child' })).toBeNull();
-    expect(within(screen.getByRole('group', { name: 'Actions for Discovery' })).getByRole('button', { name: 'Add child' })).toBeTruthy();
+    expect(screen.queryByRole('group', { name: 'Actions for Discovery' })).toBeNull();
   });
 
   it('requests WBS and allocations for the project that is selected', async () => {
@@ -288,7 +294,7 @@ describe('Delivery WBS workspace', () => {
   it('creates a child under the chosen parent', async () => {
     const user = userEvent.setup();
     const calls = await renderWorkspace();
-    const actions = screen.getByRole('group', { name: 'Actions for Discovery' });
+    const actions = await openManage(user, 'Discovery');
 
     await user.click(within(actions).getByRole('button', { name: 'Add child' }));
     await user.type(within(actions).getByLabelText('Name'), 'Workshop');
@@ -307,7 +313,7 @@ describe('Delivery WBS workspace', () => {
     const user = userEvent.setup();
     const calls = await renderWorkspace();
 
-    await user.click(within(screen.getByRole('group', { name: 'Actions for Design' })).getByRole('button', { name: 'Rename' }));
+    await user.click(within(await openManage(user, 'Design')).getByRole('button', { name: 'Rename' }));
     const name = screen.getByLabelText('Name');
     await user.clear(name);
     await user.type(name, 'Detailed design');
@@ -326,7 +332,7 @@ describe('Delivery WBS workspace', () => {
   it('moves an item with a parent-only patch', async () => {
     const user = userEvent.setup();
     const calls = await renderWorkspace();
-    const actions = screen.getByRole('group', { name: 'Actions for Design' });
+    const actions = await openManage(user, 'Design');
 
     await user.click(within(actions).getByRole('button', { name: 'Move' }));
     await user.selectOptions(within(actions).getByLabelText('Destination'), 'wbs-other');
@@ -344,7 +350,7 @@ describe('Delivery WBS workspace', () => {
   it('moves an item to root with a null parent', async () => {
     const user = userEvent.setup();
     const calls = await renderWorkspace();
-    const actions = screen.getByRole('group', { name: 'Actions for Discovery' });
+    const actions = await openManage(user, 'Discovery');
 
     await user.click(within(actions).getByRole('button', { name: 'Move' }));
     await user.selectOptions(within(actions).getByLabelText('Destination'), 'Root');
@@ -362,7 +368,7 @@ describe('Delivery WBS workspace', () => {
   it('explains when an item has no valid move destination', async () => {
     const user = userEvent.setup();
     await renderWorkspace();
-    const actions = screen.getByRole('group', { name: 'Actions for Ledger migration' });
+    const actions = await openManage(user, 'Ledger migration');
 
     await user.click(within(actions).getByRole('button', { name: 'Move' }));
 
@@ -373,7 +379,7 @@ describe('Delivery WBS workspace', () => {
   it('does not offer an allocated leaf as a move destination', async () => {
     const user = userEvent.setup();
     await renderWorkspace();
-    const actions = screen.getByRole('group', { name: 'Actions for Design' });
+    const actions = await openManage(user, 'Design');
 
     await user.click(within(actions).getByRole('button', { name: 'Move' }));
     const select = within(actions).getByLabelText('Destination') as HTMLSelectElement;
@@ -382,13 +388,14 @@ describe('Delivery WBS workspace', () => {
     expect(labels.some((label) => label.includes('Pilot'))).toBe(false);
     expect(labels).toContain('Root');
     expect(labels).toContain('Reporting cut-over');
-    expect(within(screen.getByRole('group', { name: 'Actions for Pilot' })).queryByRole('button', { name: 'Add child' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Manage Pilot' })).toHaveProperty('disabled', true);
+    expect(screen.queryByRole('group', { name: 'Actions for Pilot' })).toBeNull();
   });
 
   it('deletes an item only after confirmation', async () => {
     const user = userEvent.setup();
     const calls = await renderWorkspace();
-    const actions = screen.getByRole('group', { name: 'Actions for Design' });
+    const actions = await openManage(user, 'Design');
 
     await user.click(within(actions).getByRole('button', { name: 'Delete' }));
     expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
@@ -404,7 +411,7 @@ describe('Delivery WBS workspace', () => {
   it('explains when an item with children cannot be deleted', async () => {
     const user = userEvent.setup();
     const calls = await renderWorkspace();
-    const actions = screen.getByRole('group', { name: 'Actions for Ledger migration' });
+    const actions = await openManage(user, 'Ledger migration');
 
     await user.click(within(actions).getByRole('button', { name: 'Delete' }));
 
@@ -416,7 +423,7 @@ describe('Delivery WBS workspace', () => {
   it('explains when an item with allocations cannot be deleted', async () => {
     const user = userEvent.setup();
     const calls = await renderWorkspace();
-    const actions = screen.getByRole('group', { name: 'Actions for Pilot' });
+    const actions = await openManage(user, 'Pilot');
 
     await user.click(within(actions).getByRole('button', { name: 'Delete' }));
 
@@ -442,7 +449,7 @@ describe('Delivery WBS workspace', () => {
     render(<DeliveryApp />);
     await screen.findByRole('list', { name: 'Work breakdown structure' });
 
-    const actions = screen.getByRole('group', { name: 'Actions for Discovery' });
+    const actions = await openManage(user, 'Discovery');
     await user.click(within(actions).getByRole('button', { name: 'Add child' }));
     await user.type(within(actions).getByLabelText('Name'), 'Too deep');
     await user.click(within(actions).getByRole('button', { name: 'Add child' }));
@@ -452,6 +459,126 @@ describe('Delivery WBS workspace', () => {
       'Adding a child under wbs-child would reach depth 3',
     );
     expect((within(actions).getByLabelText('Name') as HTMLInputElement).value).toBe('Too deep');
+  });
+
+  it('collapses parent branches independently without changing staffing selection', async () => {
+    const user = userEvent.setup();
+    await renderWorkspace();
+
+    expect(screen.getByRole('button', { name: 'Collapse Ledger migration' })).toHaveProperty('ariaExpanded', 'true');
+    expect(screen.getByRole('button', { name: 'Collapse Discovery' })).toHaveProperty('ariaExpanded', 'true');
+    expect(screen.queryByRole('button', { name: 'Collapse Design' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Expand Design' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Collapse Pilot' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Collapse Reporting cut-over' })).toBeNull();
+    expect(planStaffingButton('Design')).toHaveProperty('ariaPressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: 'Collapse Discovery' }));
+
+    expect(screen.queryByText('Design', { selector: '.wbs-name' })).toBeNull();
+    expect(screen.getByText('Pilot', { selector: '.wbs-name' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Collapse Ledger migration' })).toHaveProperty('ariaExpanded', 'true');
+
+    await user.click(planStaffingButton('Pilot'));
+
+    expect(planStaffingButton('Pilot')).toHaveProperty('ariaPressed', 'true');
+    expect(itemNamed('Pilot').textContent).toContain('Selected for staffing');
+
+    await user.click(screen.getByRole('button', { name: 'Expand Discovery' }));
+
+    expect(screen.getByText('Design', { selector: '.wbs-name' })).toBeTruthy();
+    expect(planStaffingButton('Design')).toHaveProperty('ariaPressed', 'false');
+    expect(planStaffingButton('Pilot')).toHaveProperty('ariaPressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: 'Collapse Ledger migration' }));
+
+    expect(screen.queryByText('Discovery', { selector: '.wbs-name' })).toBeNull();
+    expect(screen.queryByText('Design', { selector: '.wbs-name' })).toBeNull();
+    expect(screen.queryByText('Pilot', { selector: '.wbs-name' })).toBeNull();
+    expect(screen.getByText('Reporting cut-over', { selector: '.wbs-name' })).toBeTruthy();
+
+    await user.click(screen.getByRole('button', { name: 'Expand Ledger migration' }));
+
+    expect(planStaffingButton('Pilot')).toHaveProperty('ariaPressed', 'true');
+    expect(screen.getByText('Design', { selector: '.wbs-name' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Collapse Discovery' })).toHaveProperty('ariaExpanded', 'true');
+  });
+
+  it('opens Manage and keeps the existing action availability rules', async () => {
+    const user = userEvent.setup();
+    await renderWorkspace();
+
+    const pilot = await openManage(user, 'Pilot');
+    expect(within(pilot).queryByRole('button', { name: 'Add child' })).toBeNull();
+    expect(within(pilot).getByRole('button', { name: 'Rename' })).toBeTruthy();
+    expect(within(pilot).getByRole('button', { name: 'Move' })).toBeTruthy();
+    expect(within(pilot).getByRole('button', { name: 'Delete' })).toBeTruthy();
+
+    const design = await openManage(user, 'Design');
+    expect(within(design).queryByRole('button', { name: 'Add child' })).toBeNull();
+    expect(within(design).getByRole('button', { name: 'Rename' })).toBeTruthy();
+    expect(within(design).getByRole('button', { name: 'Move' })).toBeTruthy();
+    expect(within(design).getByRole('button', { name: 'Delete' })).toBeTruthy();
+
+    const discovery = await openManage(user, 'Discovery');
+    expect(within(discovery).getByRole('button', { name: 'Add child' })).toBeTruthy();
+    expect(within(discovery).getByRole('button', { name: 'Rename' })).toBeTruthy();
+    expect(within(discovery).getByRole('button', { name: 'Move' })).toBeTruthy();
+    expect(within(discovery).getByRole('button', { name: 'Delete' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Manage Pilot' })).toHaveProperty('ariaExpanded', 'true');
+    expect(screen.getByRole('button', { name: 'Manage Design' })).toHaveProperty('ariaExpanded', 'true');
+  });
+
+  it('keeps an active management form visible until cancel', async () => {
+    const user = userEvent.setup();
+    await renderWorkspace();
+    const cases = [
+      { item: 'Discovery', action: 'Add child', heading: 'Add child to Discovery' },
+      { item: 'Design', action: 'Rename', heading: 'Rename Design' },
+      { item: 'Design', action: 'Move', heading: 'Move item' },
+      { item: 'Design', action: 'Delete', heading: null },
+    ];
+
+    for (const entry of cases) {
+      const actions = await openManage(user, entry.item);
+      await user.click(within(actions).getByRole('button', { name: entry.action }));
+
+      const manage = screen.getByRole('button', { name: `Manage ${entry.item}` });
+      expect(manage).toHaveProperty('disabled', true);
+      expect(manage).toHaveProperty('ariaExpanded', 'true');
+      if (entry.heading) {
+        expect(within(actions).getByRole('heading', { name: entry.heading })).toBeTruthy();
+      } else {
+        expect(within(actions).getByText('Delete Design?')).toBeTruthy();
+      }
+      expect(screen.getByText(entry.item, { selector: '.wbs-name' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Collapse Ledger migration' })).toHaveProperty('disabled', true);
+      expect(screen.getByRole('button', { name: 'Manage Pilot' })).toHaveProperty('disabled', true);
+      expect(screen.queryByRole('group', { name: 'Actions for Pilot' })).toBeNull();
+
+      await user.click(within(actions).getByRole('button', { name: 'Cancel' }));
+
+      expect(screen.getByRole('button', { name: `Manage ${entry.item}` })).toHaveProperty('disabled', false);
+      expect(screen.getByRole('button', { name: 'Collapse Ledger migration' })).toHaveProperty('disabled', false);
+      await user.click(screen.getByRole('button', { name: `Manage ${entry.item}` }));
+      expect(screen.queryByRole('group', { name: `Actions for ${entry.item}` })).toBeNull();
+    }
+  });
+
+  it('expands a parent when Add child starts', async () => {
+    const user = userEvent.setup();
+    await renderWorkspace();
+
+    await user.click(screen.getByRole('button', { name: 'Collapse Discovery' }));
+    expect(screen.queryByText('Design', { selector: '.wbs-name' })).toBeNull();
+
+    const actions = await openManage(user, 'Discovery');
+    await user.click(within(actions).getByRole('button', { name: 'Add child' }));
+
+    expect(within(actions).getByRole('heading', { name: 'Add child to Discovery' })).toBeTruthy();
+    expect(screen.getByText('Design', { selector: '.wbs-name' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Collapse Discovery' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: 'Collapse Ledger migration' })).toHaveProperty('disabled', true);
   });
 
   it('renders standalone without hosted runtime props', async () => {
